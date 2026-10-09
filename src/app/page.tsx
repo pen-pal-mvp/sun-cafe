@@ -19,6 +19,7 @@ export default function Home() {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
+        // 💡 トップページでも退会した人(is_deleted: true)は表示させない
         .neq('is_deleted', true)
         .order('created_at', { ascending: false })
         .limit(4);
@@ -34,6 +35,7 @@ export default function Home() {
     fetchRecentUsers();
   }, [supabase]);
 
+  // 💡 【会員の動線】ログインボタン：マジックリンクを送信して /letters へ
   const handleLogin = async () => {
     if (!email) {
       alert('이메일을 입력해주세요. / メールアドレスを入力してください。');
@@ -43,33 +45,28 @@ export default function Home() {
     setAuthLoading(true);
 
     try {
+      // 1. 💡 事前に profiles 테이블을 확인하여 탈퇴한 유저인지 체크
+      // 事前に profiles テーブルを確認し、退会済みのユーザーかチェック
       const { data: profile } = await supabase
         .from('profiles')
         .select('is_deleted')
         .eq('email', email)
         .maybeSingle();
 
-      // 💡 デフォルトの遷移先は受信箱
-      let redirectPath = '/letters';
-
-      // 💡 退会済みユーザーへの特別な「おかえりなさい」フロー
+      // 프로필이 존재하고, is_deleted가 true인 경우 로그인 차단
+      // プロフィールが存在し、is_deleted が true の場合はログインをブロック
       if (profile && profile.is_deleted) {
-        const confirmReactivate = confirm('탈퇴한 계정입니다. 다시 결제하고 계정을 복구하시겠습니까?\n/ 退会済みのアカウントです。もう一度決済してアカウントを復帰させますか？');
-        
-        if (!confirmReactivate) {
-          setAuthLoading(false);
-          return; // キャンセルした場合はここでストップ
-        }
-        // 💡 復帰する場合は、確実にStripe決済への強制送還ガードがある /users へ飛ばす
-        redirectPath = '/users';
+        alert('등록되지 않은 이메일입니다. 신규가입을 진행해주세요.\n/ 登録されていないメールアドレスです。「新規登録」を行ってください。');
+        setAuthLoading(false);
+        return;
       }
 
-      // 問題なければマジックリンク送信
+      // 2. 問題なければマジックリンク送信
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}${redirectPath}`,
-          shouldCreateUser: false, 
+          emailRedirectTo: `${window.location.origin}/letters`,
+          shouldCreateUser: false, // 未登録メールをブロック
         },
       });
 
@@ -87,6 +84,7 @@ export default function Home() {
     }
   };
 
+  // 💡 【非会員の動線】新規登録ボタン：まずは単に利用規約ページへ遷移！
   const handleSignUp = () => {
     router.push('/terms');
   };
@@ -95,10 +93,12 @@ export default function Home() {
     <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7' }}>
       
       <header className="flex flex-col md:flex-row justify-between items-center gap-6 p-6 md:px-8 bg-[#f4efe8] border-b border-[#e6dfd5]">
+        {/* 💡 whitespace-nowrap で文字が縦に潰れるのを防ぎます */}
         <h1 className="text-3xl font-bold text-[#4a3b32] whitespace-nowrap">
           순카페 (純喫茶)
         </h1>
         
+        {/* 💡 画面が狭いときは縦並び（flex-col）、広いときは横並び（sm:flex-row）に自動で切り替わるように設定 */}
         <div className="flex flex-col sm:flex-row gap-4 items-center w-full md:w-auto">
           <input 
             type="email" 
