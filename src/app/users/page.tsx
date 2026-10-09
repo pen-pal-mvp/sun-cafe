@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/utils/supabase/client';
 
-// 💡 実際の処理を行うコンポーネントを分離
 function UsersContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -31,7 +30,7 @@ function UsersContent() {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          router.replace('/users'); // 決済検証が完了したらパラメータを消してリロード
+          router.replace('/users'); 
         }
       })
       .catch(err => console.error('Verification failed:', err))
@@ -66,15 +65,15 @@ function UsersContent() {
 
         setMyUserId(user.id);
         
-        // 💡 プロフィール情報を取得（エラーハンドリングを追加）
+        // 💡 判定用に nickname も取得する
         const { data: myProfile, error: profileError } = await supabase
           .from('profiles')
-          .select('native_language, is_deleted')
+          .select('native_language, is_deleted, nickname')
           .eq('id', user.id)
           .single();
         
-        // 💡【重要】プロフィールが存在しない（新規登録直後）場合は強制的に作成画面へ！
-        if (profileError || !myProfile) {
+        // 💡 プロフィール行が無い、または「nickname」が未設定の場合は強制的に作成画面へ！
+        if (profileError || !myProfile || !myProfile.nickname) {
           router.replace('/profile/new');
           return;
         }
@@ -106,7 +105,8 @@ function UsersContent() {
         if (error) {
           console.error('사용자 목록 가져오기 에러:', error);
         } else if (data) {
-          const filteredUsers = data.filter(u => !blockedIds.has(u.id));
+          // 💡 自分自身と退会済みの人、ブロックした人を除外し、かつ nickname が設定されている人のみ表示
+          const filteredUsers = data.filter(u => !blockedIds.has(u.id) && u.nickname);
           setUsers(filteredUsers);
         }
       }
@@ -118,7 +118,9 @@ function UsersContent() {
 
   if (isVerifying) {
     return (
-      <p className="text-2xl text-[#4a3b32] font-bold animate-pulse">결제 확인 중... / 決済確認中...</p>
+      <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <p className="text-2xl text-[#4a3b32] font-bold animate-pulse">결제 확인 중... / 決済確認中...</p>
+      </main>
     );
   }
 
@@ -231,7 +233,6 @@ function UsersContent() {
   );
 }
 
-// 大元のページコンポーネント
 export default function Users() {
   return (
     <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7' }}>
