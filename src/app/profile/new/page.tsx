@@ -19,13 +19,25 @@ export default function NewProfile() {
 
   useEffect(() => {
     const initProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        // 未ログインの場合はトップへ戻す
-        router.push('/');
+      // 💡 認証のタイムラグを防ぐため、数回リトライして確実にユーザー情報を捕まえる！
+      let user = null;
+      for (let i = 0; i < 3; i++) {
+        const { data } = await supabase.auth.getUser();
+        if (data?.user) {
+          user = data.user;
+          break;
+        }
+        // セッションが取れなかったら0.5秒待つ
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      if (!user) {
+        // それでもダメなら未ログインとしてトップへ
+        window.location.href = '/';
         return;
       }
-      setUserId(session.user.id);
+      
+      setUserId(user.id);
       setLoading(false);
     };
     initProfile();
@@ -37,8 +49,6 @@ export default function NewProfile() {
     
     setSaving(true);
 
-    // 💡 修正ポイント：Webhookが作成したデータを壊さないよう、.update() を使用する！
-    // 言語情報はWebhookですでに保存されているため、ここでは送信しない
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
@@ -55,10 +65,17 @@ export default function NewProfile() {
     }
 
     // 保存できたらユーザー一覧画面（/users）へ遷移！
-    router.push('/users');
+    window.location.href = '/users';
   };
 
-  if (loading) return null;
+  // 💡 読み込み中の画面を少し分かりやすくしたわ
+  if (loading) {
+    return (
+      <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <p className="text-xl text-[#4a3b32] font-bold">인증 확인 중... / 認証確認中...</p>
+      </main>
+    );
+  }
 
   return (
     <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7', padding: '48px 24px' }}>
