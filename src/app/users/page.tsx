@@ -31,7 +31,7 @@ function UsersContent() {
       .then(res => res.json())
       .then(data => {
         if (data.success) {
-          router.replace('/users');
+          router.replace('/users'); // 決済検証が完了したらパラメータを消してリロード
         }
       })
       .catch(err => console.error('Verification failed:', err))
@@ -43,11 +43,9 @@ function UsersContent() {
 
   useEffect(() => {
     const checkAuthAndFetchUsers = async () => {
-      // 1. ローカルのセッションを取得
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.user?.id) {
-        // 2. サーバーから最新のユーザー状態を取得
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
         if (authError || !user) {
@@ -68,20 +66,26 @@ function UsersContent() {
 
         setMyUserId(user.id);
         
-        const { data: myProfile } = await supabase
+        // 💡 プロフィール情報を取得（エラーハンドリングを追加）
+        const { data: myProfile, error: profileError } = await supabase
           .from('profiles')
           .select('native_language, is_deleted')
           .eq('id', user.id)
           .single();
         
-        if (myProfile) {
-          if (myProfile.is_deleted) {
-            alert('탈퇴한 계정입니다. 결제 페이지로 이동합니다.\n\n退会済みのアカウントです。決済ページへ移動します。');
-            window.location.href = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '#';
-            return;
-          }
-          setMyNativeLanguage(myProfile.native_language);
+        // 💡【重要】プロフィールが存在しない（新規登録直後）場合は強制的に作成画面へ！
+        if (profileError || !myProfile) {
+          router.replace('/profile/new');
+          return;
         }
+
+        if (myProfile.is_deleted) {
+          alert('탈퇴한 계정입니다. 결제 페이지로 이동합니다.\n\n退会済みのアカウントです。決済ページへ移動します。');
+          window.location.href = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '#';
+          return;
+        }
+        
+        setMyNativeLanguage(myProfile.native_language);
 
         const blockedIds = new Set<string>();
         const { data: blocks } = await supabase
@@ -227,7 +231,7 @@ function UsersContent() {
   );
 }
 
-// 💡 大元のページコンポーネント（ここでSuspenseで包む）
+// 大元のページコンポーネント
 export default function Users() {
   return (
     <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7' }}>

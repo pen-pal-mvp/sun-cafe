@@ -17,7 +17,6 @@ export async function POST(req: Request) {
     // 韓国語（ko）の場合
     if (nativeLanguage === 'ko' || nativeLanguage === 'Korean') {
       priceId = process.env.STRIPE_PRICE_ID_KRW || '';
-      // 💡 ここを 'kakaopay' から 'kakao_pay' に修正したわ！
       paymentMethodTypes = ['card', 'kakao_pay']; 
     } 
     // 日本語（ja）またはその他の場合（デフォルト）
@@ -36,7 +35,6 @@ export async function POST(req: Request) {
     });
 
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const successPath = is_returning ? '/profile' : '/profile/new';
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: paymentMethodTypes,
@@ -49,7 +47,8 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${baseUrl}${successPath}?session_id={CHECKOUT_SESSION_ID}`,
+      // 💡 戻り先を全員一律で /users に固定！
+      success_url: `${baseUrl}/users?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/`,
       metadata: {
         user_id: user_id,
