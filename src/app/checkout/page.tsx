@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 
-export default function CheckoutRedirect() {
+// 💡 実際の処理を行うコンポーネントを分離
+function CheckoutContent() {
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams(); // 💡 クエリパラメータを取得
@@ -33,9 +34,9 @@ export default function CheckoutRedirect() {
           body: JSON.stringify({ 
             user_id: session.user.id, 
             email: session.user.email,
-            is_returning: isReturning, // バックエンドに「再登録か新規か」を伝える
-            lang: lang,   // 💡 URLから受け取った母国語をそのまま渡す！
-            learn: learn  // 💡 学習言語も渡す
+            is_returning: isReturning, 
+            lang: lang,   
+            learn: learn  
           }),
         });
         
@@ -55,8 +56,19 @@ export default function CheckoutRedirect() {
   }, [router, supabase, searchParams]);
 
   return (
+    <p className="text-2xl text-[#4a3b32] font-bold animate-pulse">
+      결제 화면으로 이동 중입니다... / 決済画面へ移動中です...
+    </p>
+  );
+}
+
+// 💡 大元のページコンポーネント（ここでSuspenseで包む）
+export default function CheckoutRedirect() {
+  return (
     <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      <p className="text-2xl text-[#4a3b32] font-bold animate-pulse">결제 화면으로 이동 중입니다... / 決済画面へ移動中です...</p>
+      <Suspense fallback={<p className="text-2xl text-[#4a3b32] font-bold">로딩 중... / 読み込み中...</p>}>
+        <CheckoutContent />
+      </Suspense>
     </main>
   );
 }
