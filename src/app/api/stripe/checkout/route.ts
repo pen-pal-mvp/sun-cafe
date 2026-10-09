@@ -34,8 +34,10 @@ export async function POST(req: Request) {
       apiVersion: '2023-10-16' as any,
     });
 
-    // 💡 修正の心臓部！環境変数に頼らず、リクエストが来た「実際のURL（Vercelの本番URL）」を自動取得するわ！
     const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+    // 💡 ここで賢い分岐を復活！新規ユーザーならプロフィール作成へ、再登録なら一覧へ直接飛ばす！
+    const successPath = is_returning ? '/users' : '/profile/new';
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: paymentMethodTypes,
@@ -48,8 +50,8 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      // 💡 取得したVercelのURLを使って戻り先を指定！
-      success_url: `${origin}/users?session_id={CHECKOUT_SESSION_ID}`,
+      // 💡 取得したルート（successPath）を適用！
+      success_url: `${origin}${successPath}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/`,
       metadata: {
         user_id: user_id,
