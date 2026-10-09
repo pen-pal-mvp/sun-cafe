@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/utils/supabase/client';
 
 const MAX_LETTERS_PER_MONTH = 10;
 
-export default function NewLetter() {
+// 💡 実際の処理を行うコンポーネントを分離
+function NewLetterContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // 💡 クエリパラメータを取得
   const receiverId = searchParams.get('receiver_id');
   const supabase = createClient();
 
@@ -77,7 +78,7 @@ export default function NewLetter() {
   const handleSend = async () => {
     if (!content.trim()) return;
     if (remainingCount !== null && remainingCount <= 0) {
-      alert('이번 달 편지 발송 한도를 모두 사용했습니다. / 今月の手紙送信上限に達しました。');
+      alert('이번 달 편지 발송 한도를 모두 사용했습니다. / 今月の手紙送信上限에 達しました。');
       return;
     }
 
@@ -138,8 +139,6 @@ export default function NewLetter() {
       </header>
 
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '48px 24px' }}>
-        
-        {/* 💡 タイトルと残数カウンターのレイアウト */}
         <div className="flex justify-between items-center mb-10 pb-6 border-b border-[#e6dfd5]">
           <h2 className="text-3xl font-bold text-[#4a3b32]">
             새 편지 쓰기 / 新しい手紙を書く
@@ -196,5 +195,18 @@ export default function NewLetter() {
         </div>
       </div>
     </main>
+  );
+}
+
+// 💡 大元のページコンポーネント（ここでSuspenseで包む）
+export default function NewLetter() {
+  return (
+    <Suspense fallback={
+      <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <p className="text-xl text-[#4a3b32] font-bold">준비 중... / 準備中...</p>
+      </main>
+    }>
+      <NewLetterContent />
+    </Suspense>
   );
 }
