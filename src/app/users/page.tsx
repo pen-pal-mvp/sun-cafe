@@ -17,6 +17,7 @@ function UsersContent() {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [myNativeLanguage, setMyNativeLanguage] = useState<string | null>(null);
 
+  // 1. Stripeの決済確認
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
     
@@ -40,7 +41,15 @@ function UsersContent() {
     }
   }, [searchParams, router]);
 
+  // 2. プロフィール確認とユーザー一覧取得
   useEffect(() => {
+    const sessionId = searchParams.get('session_id');
+    
+    // 💡 レースコンディション対策：決済検証中（またはURLにsession_idがある時）はここでストップ！
+    if (sessionId || isVerifying) {
+      return;
+    }
+
     const checkAuthAndFetchUsers = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -65,7 +74,6 @@ function UsersContent() {
 
         setMyUserId(user.id);
         
-        // 💡 判定用に nickname も取得する
         const { data: myProfile, error: profileError } = await supabase
           .from('profiles')
           .select('native_language, is_deleted, nickname')
@@ -105,7 +113,6 @@ function UsersContent() {
         if (error) {
           console.error('사용자 목록 가져오기 에러:', error);
         } else if (data) {
-          // 💡 自分自身と退会済みの人、ブロックした人を除外し、かつ nickname が設定されている人のみ表示
           const filteredUsers = data.filter(u => !blockedIds.has(u.id) && u.nickname);
           setUsers(filteredUsers);
         }
@@ -114,7 +121,8 @@ function UsersContent() {
     };
 
     checkAuthAndFetchUsers();
-  }, [supabase, router]);
+  // 💡 依存配列に searchParams と isVerifying を追加して、状況が変わるたびに再評価させる
+  }, [supabase, router, searchParams, isVerifying]);
 
   if (isVerifying) {
     return (
