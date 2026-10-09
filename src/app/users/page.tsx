@@ -17,112 +17,91 @@ function UsersContent() {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [myNativeLanguage, setMyNativeLanguage] = useState<string | null>(null);
 
-  // 1. Stripeの決済確認
   useEffect(() => {
-    const sessionId = searchParams.get('session_id');
-    
-    if (sessionId) {
-      setIsVerifying(true);
-      fetch('/api/stripe/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId }),
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) {
-          router.replace('/users'); 
+    let isMounted = true;
+
+    const initializePage = async () => {
+      setLoading(true);
+
+      // 1. Stripeの決済確認（直列処理のスタート）
+      const sessionId = searchParams.get('session_id');
+      if (sessionId) {
+        setIsVerifying(true);
+        try {
+          await fetch('/api/stripe/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ session_id: sessionId }),
+          });
+          // 💡 リロードせずに、URLからパラメータだけを綺麗に消し去る
+          window.history.replaceState(null, '', '/users');
+        } catch (err) {
+          console.error('Verify error:', err);
         }
-      })
-      .catch(err => console.error('Verification failed:', err))
-      .finally(() => {
-        setIsVerifying(false);
-      });
-    }
-  }, [searchParams, router]);
-
-  // 2. プロフィール確認とユーザー一覧取得
-  useEffect(() => {
-    const sessionId = searchParams.get('session_id');
-    
-    // 💡 レースコンディション対策：決済検証中（またはURLにsession_idがある時）はここでストップ！
-    if (sessionId || isVerifying) {
-      return;
-    }
-
-    const checkAuthAndFetchUsers = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user?.id) {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-        
-        if (authError || !user) {
-          await supabase.auth.signOut();
-          router.replace('/');
-          return;
-        }
-
-        const localSignIn = new Date(session.user.last_sign_in_at || 0).getTime();
-        const serverSignIn = new Date(user.last_sign_in_at || 0).getTime();
-
-        if (serverSignIn > localSignIn + 2000) {
-          alert('다른 기기에서 로그인이 감지되어 자동 로그아웃됩니다.\n\n別の端末でのログインが検知されたため、自動的にログアウトします。');
-          await supabase.auth.signOut();
-          window.location.href = '/';
-          return;
-        }
-
-        setMyUserId(user.id);
-        
-        const { data: myProfile, error: profileError } = await supabase
-          .from('profiles')
-          .select('native_language, is_deleted, nickname')
-          .eq('id', user.id)
-          .single();
-        
-        // 💡 プロフィール行が無い、または「nickname」が未設定の場合は強制的に作成画面へ！
-        if (profileError || !myProfile || !myProfile.nickname) {
-          router.replace('/profile/new');
-          return;
-        }
-
-        if (myProfile.is_deleted) {
-          alert('탈퇴한 계정입니다. 결제 페이지로 이동합니다.\n\n退会済みのアカウントです。決済ページへ移動します。');
-          window.location.href = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '#';
-          return;
-        }
-        
-        setMyNativeLanguage(myProfile.native_language);
-
-        const blockedIds = new Set<string>();
-        const { data: blocks } = await supabase
-          .from('blocks')
-          .select('blocked_id')
-          .eq('blocker_id', user.id);
-        
-        if (blocks) {
-          blocks.forEach(block => blockedIds.add(block.blocked_id));
-        }
-
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .neq('is_deleted', true) 
-          .order('created_at', { ascending: false });
-        
-        if (error) {
-          console.error('사용자 목록 가져오기 에러:', error);
-        } else if (data) {
-          const filteredUsers = data.filter(u => !blockedIds.has(u.id) && u.nickname);
-          setUsers(filteredUsers);
-        }
+        if (isMounted) setIsVerifying(false);
       }
-      setLoading(false);
+
+      // 2. ユーザーの認証状態を確認
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) {
+        await supabase.auth.signOut();
+        if (isMounted) window.location.href = '/'; // 💡 絶対にトップへ強制送還
+        return;
+      }
+
+      // 3. 【最重要】プロフィールの有無とニックネームをチェック
+      // 💡 single() ではなく maybeSingle() を使うことで、0件の時のエラー暴発を防ぐ
+      const { data: myProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('nickname, is_deleted, native_language')
+        .eq('id', user.id)
+        .maybeSingle(); 
+      
+      // 💡 プロフィールが無い、または nickname が空っぽの場合は絶対に作成画面へ！
+      if (profileError || !myProfile || !myProfile.nickname || myProfile.nickname.trim() === '') {
+        // 💡 どんな処理よりも優先されるブラウザの強制移動！
+        window.location.href = '/profile/new';
+        return;
+      }
+
+      if (myProfile.is_deleted) {
+        alert('탈퇴한 계정입니다. 결제 페이지로 이동합니다.\n\n退会済みのアカウントです。決済ページへ移動します。');
+        window.location.href = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '#';
+        return;
+      }
+
+      // 4. ここまで来れたら「完全な有料ユーザー」なので、一覧を表示
+      if (isMounted) {
+        setMyUserId(user.id);
+        setMyNativeLanguage(myProfile.native_language);
+      }
+
+      const { data: blocks } = await supabase
+        .from('blocks')
+        .select('blocked_id')
+        .eq('blocker_id', user.id);
+      
+      const blockedIds = new Set((blocks || []).map(b => b.blocked_id));
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .neq('is_deleted', true) 
+        .order('created_at', { ascending: false });
+      
+      if (!error && data && isMounted) {
+        // ニックネームが無いユーザー（作成途中）は一覧から隠す
+        const filteredUsers = data.filter(u => !blockedIds.has(u.id) && u.nickname && u.nickname.trim() !== '');
+        setUsers(filteredUsers);
+      }
+      
+      if (isMounted) setLoading(false);
     };
 
-    checkAuthAndFetchUsers();
-  // 💡 依存配列に searchParams と isVerifying を追加して、状況が変わるたびに再評価させる
-  }, [supabase, router, searchParams, isVerifying]);
+    initializePage();
+
+    return () => { isMounted = false; };
+  }, [router, searchParams, supabase]);
 
   if (isVerifying) {
     return (
