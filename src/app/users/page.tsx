@@ -23,7 +23,6 @@ function UsersContent() {
     const initializePage = async () => {
       setLoading(true);
 
-      // 1. Stripeの決済確認（直列処理のスタート）
       const sessionId = searchParams.get('session_id');
       if (sessionId) {
         setIsVerifying(true);
@@ -33,7 +32,6 @@ function UsersContent() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ session_id: sessionId }),
           });
-          // 💡 リロードせずに、URLからパラメータだけを綺麗に消し去る
           window.history.replaceState(null, '', '/users');
         } catch (err) {
           console.error('Verify error:', err);
@@ -41,25 +39,32 @@ function UsersContent() {
         if (isMounted) setIsVerifying(false);
       }
 
-      // 2. ユーザーの認証状態を確認
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError || !user) {
+      // 💡 認証セッションの取得を数回リトライするロジックに変更
+      let user = null;
+      for (let i = 0; i < 3; i++) {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          user = session.user;
+          break; // セッションが取れたらループを抜ける
+        }
+        // セッションが取れなかったら0.5秒待つ
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      if (!user) {
+        // それでもダメなら強制サインアウトしてトップへ
         await supabase.auth.signOut();
-        if (isMounted) window.location.href = '/'; // 💡 絶対にトップへ強制送還
+        if (isMounted) window.location.href = '/'; 
         return;
       }
 
-      // 3. 【最重要】プロフィールの有無とニックネームをチェック
-      // 💡 single() ではなく maybeSingle() を使うことで、0件の時のエラー暴発を防ぐ
       const { data: myProfile, error: profileError } = await supabase
         .from('profiles')
         .select('nickname, is_deleted, native_language')
         .eq('id', user.id)
         .maybeSingle(); 
       
-      // 💡 プロフィールが無い、または nickname が空っぽの場合は絶対に作成画面へ！
       if (profileError || !myProfile || !myProfile.nickname || myProfile.nickname.trim() === '') {
-        // 💡 どんな処理よりも優先されるブラウザの強制移動！
         window.location.href = '/profile/new';
         return;
       }
@@ -70,7 +75,6 @@ function UsersContent() {
         return;
       }
 
-      // 4. ここまで来れたら「完全な有料ユーザー」なので、一覧を表示
       if (isMounted) {
         setMyUserId(user.id);
         setMyNativeLanguage(myProfile.native_language);
@@ -90,7 +94,6 @@ function UsersContent() {
         .order('created_at', { ascending: false });
       
       if (!error && data && isMounted) {
-        // ニックネームが無いユーザー（作成途中）は一覧から隠す
         const filteredUsers = data.filter(u => !blockedIds.has(u.id) && u.nickname && u.nickname.trim() !== '');
         setUsers(filteredUsers);
       }
