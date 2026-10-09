@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/utils/supabase/client';
 
-export default function Users() {
+// 💡 実際の処理を行うコンポーネントを分離
+function UsersContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
@@ -46,7 +47,7 @@ export default function Users() {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session?.user?.id) {
-        // 2. サーバーから最新のユーザー状態を取得（💡ここで別の端末でのログインを検知！）
+        // 2. サーバーから最新のユーザー状態を取得
         const { data: { user }, error: authError } = await supabase.auth.getUser();
         
         if (authError || !user) {
@@ -58,7 +59,6 @@ export default function Users() {
         const localSignIn = new Date(session.user.last_sign_in_at || 0).getTime();
         const serverSignIn = new Date(user.last_sign_in_at || 0).getTime();
 
-        // 💡 サーバーのログイン時間がローカルより新しい場合＝別端末でログインされた！
         if (serverSignIn > localSignIn + 2000) {
           alert('다른 기기에서 로그인이 감지되어 자동 로그아웃됩니다.\n\n別の端末でのログインが検知されたため、自動的にログアウトします。');
           await supabase.auth.signOut();
@@ -114,14 +114,12 @@ export default function Users() {
 
   if (isVerifying) {
     return (
-      <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-        <p className="text-2xl text-[#4a3b32] font-bold animate-pulse">결제 확인 중... / 決済確認中...</p>
-      </main>
+      <p className="text-2xl text-[#4a3b32] font-bold animate-pulse">결제 확인 중... / 決済確認中...</p>
     );
   }
 
   return (
-    <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7' }}>
+    <>
       <header style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -225,6 +223,21 @@ export default function Users() {
           </div>
         )}
       </div>
+    </>
+  );
+}
+
+// 💡 大元のページコンポーネント（ここでSuspenseで包む）
+export default function Users() {
+  return (
+    <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7' }}>
+      <Suspense fallback={
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
+          <p className="text-xl text-[#4a3b32] font-bold">로딩 중... / 読み込み中...</p>
+        </div>
+      }>
+        <UsersContent />
+      </Suspense>
     </main>
   );
 }
