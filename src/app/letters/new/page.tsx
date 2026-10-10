@@ -76,7 +76,22 @@ function NewLetterContent() {
   }, [receiverId, router, supabase]);
 
   const handleSend = async () => {
-    if (!content.trim()) return;
+    // 💡 1. 前後の空白を消去し、空入力をブロック
+    const trimmedContent = content.trim();
+    if (!trimmedContent) {
+      alert('편지 내용을 입력해주세요. / 手紙の内容を入力してください。');
+      return;
+    }
+
+    // 💡 2. アスキーアート・縦読み荒らし対策: 3回以上連続する改行を2回に制限
+    const sanitizedContent = trimmedContent.replace(/\n{3,}/g, '\n\n');
+
+    // 💡 3. 整形後の文字列で最終的な文字数チェック
+    if (sanitizedContent.length > 400) {
+      alert('글자 수 제한을 초과했습니다. / 文字数制限を超えています。');
+      return;
+    }
+
     if (remainingCount !== null && remainingCount <= 0) {
       alert('이번 달 편지 발송 한도를 모두 사용했습니다. / 今月の手紙送信上限에 達しました。');
       return;
@@ -92,7 +107,7 @@ function NewLetterContent() {
         .insert({
           sender_id: user.id,
           receiver_id: receiver.id,
-          content: content.trim(),
+          content: sanitizedContent, // 💡 整形済みのデータを保存
         });
 
       if (error) throw error;
