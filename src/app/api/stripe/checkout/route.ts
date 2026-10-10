@@ -36,8 +36,8 @@ export async function POST(req: Request) {
 
     const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
-    // 💡 ここで賢い分岐を復活！新規ユーザーならプロフィール作成へ、再登録なら一覧へ直接飛ばす！
-    const successPath = is_returning ? '/users' : '/profile/new';
+    // 💡 完璧なルーティング: 新規なら /profile/new、再등록자（is_returning: true）なら /profile へ自動振り分け！
+    const successPath = is_returning ? '/profile' : '/profile/new';
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: paymentMethodTypes,
