@@ -191,13 +191,14 @@ function UsersContent() {
                     </div>
                   )}
 
-                  <div className="w-[200px] border-r border-[#efebe3] pr-6 mr-6 flex-shrink-0 flex flex-col gap-3 relative z-10">
+                  {/* ここが中央揃えになるように修正した部分よ！ */}
+                  <div className="w-[200px] border-r border-[#efebe3] pr-6 mr-6 flex-shrink-0 flex flex-col items-center justify-center gap-3 relative z-10">
                     {user.mbti && (
                       <span className="inline-block px-4 py-2 bg-[#f0e6dd] text-[#7a5c4d] font-bold rounded-full text-center text-lg w-fit shadow-sm">
                         {user.mbti}
                       </span>
                     )}
-                    <span className={`font-bold text-2xl truncate transition-colors text-[#4a3b32] ${isMatchable ? 'group-hover:text-[#879977]' : ''}`} title={user.nickname}>
+                    <span className={`font-bold text-2xl truncate text-center w-full transition-colors text-[#4a3b32] ${isMatchable ? 'group-hover:text-[#879977]' : ''}`} title={user.nickname}>
                       {user.nickname}
                     </span>
                   </div>
