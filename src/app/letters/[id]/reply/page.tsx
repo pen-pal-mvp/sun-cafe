@@ -15,6 +15,7 @@ export default function ReplyLetterPage() {
   
   const [receiverId, setReceiverId] = useState('');
   const [receiverName, setReceiverName] = useState('');
+  const [receiverNative, setReceiverNative] = useState(''); // 💡 宛先の言語を保存するステート
   const [content, setContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -22,31 +23,33 @@ export default function ReplyLetterPage() {
 
   const CONTENT_MAX_CHARS = 400;
 
-  // 開発確認用のダミーデータ（元の手紙IDから送信者を割り出す）
+  // 開発確認用のダミーデータ
   const dummyData: Record<string, any> = {
-    'dummy-1': { sender_id: 'dummy-sender-1', sender_name: '지은 (Ji-eun)' },
-    'dummy-2': { sender_id: 'dummy-sender-2', sender_name: '민수 (Min-su)' },
-    'dummy-3': { sender_id: 'dummy-sender-3', sender_name: '켄타 (Kenta)' }
+    'dummy-1': { sender_id: 'dummy-sender-1', sender_name: '지은 (Ji-eun)', sender_native: 'ko' },
+    'dummy-2': { sender_id: 'dummy-sender-2', sender_name: '민수 (Min-su)', sender_native: 'ko' },
+    'dummy-3': { sender_id: 'dummy-sender-3', sender_name: '켄타 (Kenta)', sender_native: 'ja' }
   };
 
   useEffect(() => {
     const fetchOriginalLetterAndSender = async () => {
       try {
-        // 1. ダミーデータの場合の処理（開発モード確認用）
+        // 1. ダミーデータの場合の処理
         if (letterId.startsWith('dummy-')) {
           const dummyInfo = dummyData[letterId];
           if (dummyInfo) {
             setReceiverId(dummyInfo.sender_id);
             setReceiverName(dummyInfo.sender_name);
+            setReceiverNative(dummyInfo.sender_native);
           } else {
             setReceiverName('테스트 유저 / テストユーザー');
+            setReceiverNative('ko');
           }
-          setRemainingCount(MAX_LETTERS_PER_MONTH); // ダミー用カウンター
+          setRemainingCount(MAX_LETTERS_PER_MONTH);
           setLoading(false);
           return;
         }
 
-        // 2. 本番のデータベースから取得하는 처리
+        // 2. 本番のデータベースから取得
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
@@ -55,7 +58,7 @@ export default function ReplyLetterPage() {
           return;
         }
 
-        // 返信先（元の手紙の送信者）を特定するために元の手紙を取得
+        // 返信先（元の手紙の送信者）を特定
         const { data: letterData, error: letterError } = await supabase
           .from('letters')
           .select('sender_id')
@@ -68,16 +71,17 @@ export default function ReplyLetterPage() {
 
         setReceiverId(letterData.sender_id);
 
-        // 返信先のプロフィール（ニックネーム）を取得
+        // 💡 返信先のプロフィールから native_language も取得
         const { data: profileData } = await supabase
           .from('profiles')
-          .select('nickname')
+          .select('nickname, native_language')
           .eq('id', letterData.sender_id)
           .single();
 
         setReceiverName(profileData?.nickname || '이름 없음 (名無し)');
+        setReceiverNative(profileData?.native_language || 'ko');
 
-        // 3. 💡 今月の送信件数をカウントする処理
+        // 3. 今月の送信件数をカウント
         const now = new Date();
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
@@ -119,7 +123,6 @@ export default function ReplyLetterPage() {
       return;
     }
 
-    // 💡 カウンター上限チェック
     if (remainingCount !== null && remainingCount <= 0) {
       alert('이번 달 편지 발송 한도를 모두 사용했습니다. / 今月の手紙送信上限に達しました。');
       return;
@@ -162,6 +165,11 @@ export default function ReplyLetterPage() {
 
   const isOverLimit = remainingCount !== null && remainingCount <= 0;
 
+  // 💡 国旗の絵文字を判定
+  const isKo = receiverNative === 'ko' || receiverNative === 'Korean';
+  const isJa = receiverNative === 'ja' || receiverNative === 'Japanese';
+  const flagEmoji = isKo ? '🇰🇷' : isJa ? '🇯🇵' : '☕';
+
   return (
     <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7' }}>
       <header style={{ 
@@ -192,7 +200,6 @@ export default function ReplyLetterPage() {
 
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '48px 24px' }}>
         
-        {/* 💡 タイトルとカウンターの配置 */}
         <div className="flex justify-between items-center mb-10 pb-6 border-b border-[#e6dfd5]">
           <h2 className="text-3xl font-bold text-[#4a3b32]">
             답장 쓰기 / 返事を書く
@@ -204,7 +211,6 @@ export default function ReplyLetterPage() {
           )}
         </div>
 
-        {/* 💡 上限到達時の警告メッセージ */}
         {isOverLimit && (
           <div className="mb-8 p-4 bg-red-50 border border-red-200 text-red-700 rounded-md font-bold text-center">
             이번 달 보낼 수 있는 편지를 모두 소진했습니다. 다음 달에 다시 이용해주세요. <br />
@@ -215,7 +221,8 @@ export default function ReplyLetterPage() {
         <form onSubmit={handleSend} className="bg-white p-8 rounded-2xl shadow-sm border border-[#e6dfd5] space-y-8">
           
           <div className="bg-[#f4efe8] p-4 rounded-lg border border-[#e6dfd5] flex items-center gap-4">
-            <span className="text-2xl">🕊️</span>
+            {/* 💡 国旗を表示 */}
+            <span className="text-4xl drop-shadow-sm">{flagEmoji}</span>
             <div>
               <p className="text-sm font-bold text-[#a39891] mb-1">To.</p>
               <p className="text-2xl font-bold text-[#4a3b32]">{receiverName}</p>
