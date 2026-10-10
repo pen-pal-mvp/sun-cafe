@@ -45,16 +45,33 @@ export default function NewProfile() {
 
   const handleSaveAndCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (nickname.length > 20 || bio.length > 144 || !userId) return;
+    if (!userId) return;
+
+    // 💡 1. ニックネームと自己紹介の「前後の空白」を消去し、空白だけの入力を弾く
+    const trimmedNickname = nickname.trim();
+    if (!trimmedNickname) {
+      alert('닉네임을 입력해주세요. / ニックネームを入力してください。');
+      return;
+    }
+
+    // 💡 2. アスキーアート・縦読み荒らし対策: 3回以上連続する改行を、2回に制限する
+    // 例: \n\n\n\n -> \n\n に置換されるわ
+    const sanitizedBio = bio.trim().replace(/\n{3,}/g, '\n\n');
+
+    // 💡 3. 万が一、フロント側の制限をすり抜けた場合（コピペ等）の最終文字数チェック
+    if (trimmedNickname.length > 20 || sanitizedBio.length > 144) {
+       alert('글자 수 제한을 초과했습니다. / 文字数制限を超過しています。');
+       return;
+    }
     
     setSaving(true);
 
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
-        nickname: nickname,
+        nickname: trimmedNickname, // 💡 整形済みのデータを保存
         mbti: mbti,
-        bio: bio,
+        bio: sanitizedBio, // 💡 整形済みのデータを保存
       })
       .eq('id', userId);
 
@@ -68,7 +85,6 @@ export default function NewProfile() {
     window.location.href = '/users';
   };
 
-  // 💡 読み込み中の画面を少し分かりやすくしたわ
   if (loading) {
     return (
       <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
