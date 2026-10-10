@@ -223,10 +223,8 @@ export default function Letters() {
           <div className="text-center py-20 bg-white rounded-2xl border border-[#e6dfd5] shadow-sm">
             <div className="text-7xl mb-6 drop-shadow-sm">📭</div>
             <h3 className="text-2xl font-bold text-[#4a3b32] mb-3">아직 도착한 편지가 없습니다.</h3>
-            <p className="text-[#a39891] text-lg mb-10">まだ手紙は届いていません。</p>
-            <Button onClick={() => router.push('/users')} className="bg-[#879977] hover:bg-[#738563] text-white font-bold text-lg px-8 py-4 h-auto rounded-full shadow-md">
-              펜팔 찾기 / 新しい文通相手を探す
-            </Button>
+            {/* 💡 ボタンを削除して余白を整えました */}
+            <p className="text-[#a39891] text-lg">まだ手紙は届いていません。</p>
           </div>
         ) : (
           <div className="space-y-6">
