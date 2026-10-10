@@ -31,25 +31,17 @@ export async function POST(req: Request) {
     const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
     const email = session.customer_details?.email || session.metadata?.email;
     
+    const nativeLanguage = session.metadata?.native_language || 'ko';
+    const learningLanguage = session.metadata?.learning_language || 'ja';
+
     if (userId) {
-      // 🛡️ 防波堤: 上書きする前に、既存のプロフィール（言語データ）があるか確認する！
-      const { data: existingProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('native_language, learning_language')
-        .eq('id', userId)
-        .maybeSingle();
-
-      // 💡 既存のデータがあればそれを最優先し、完全な新規ユーザーの場合のみStripeのデータを使う
-      const nativeLanguage = existingProfile?.native_language || session.metadata?.native_language || 'ko';
-      const learningLanguage = existingProfile?.learning_language || session.metadata?.learning_language || 'ja';
-
       await supabaseAdmin
         .from('profiles')
         .upsert({
           id: userId,
           email: email || '',
           is_paid: true,
-          is_deleted: false, // 退会からの復帰！
+          is_deleted: false,
           stripe_customer_id: customerId,
           native_language: nativeLanguage,
           learning_language: learningLanguage
@@ -58,16 +50,6 @@ export async function POST(req: Request) {
         });
 
     } else if (email) {
-      // ユーザーIDがない場合のフォールバック処理
-      const { data: existingProfile } = await supabaseAdmin
-        .from('profiles')
-        .select('native_language, learning_language')
-        .eq('email', email)
-        .maybeSingle();
-
-      const nativeLanguage = existingProfile?.native_language || session.metadata?.native_language || 'ko';
-      const learningLanguage = existingProfile?.learning_language || session.metadata?.learning_language || 'ja';
-
       await supabaseAdmin
         .from('profiles')
         .update({
