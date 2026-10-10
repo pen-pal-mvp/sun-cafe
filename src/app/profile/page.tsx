@@ -11,7 +11,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // プロフィール状態
+  // 프로필 상태 (プロフィール状態)
   const [profile, setProfile] = useState({
     nickname: '',
     mbti: 'ENFP',
@@ -21,7 +21,8 @@ export default function Profile() {
   const NICKNAME_MAX_CHARS = 20;
   const BIO_MAX_CHARS = 144;
 
-  // 1. ページ読み込み時にSupabaseから現在のプロフィールデータを取得（未ログイン時は開発用ダミーで表示継続）
+  // 1. 페이지 로드 시 Supabase에서 현재 프로필 데이터 가져오기
+  // 1. ページ読み込み時にSupabaseから現在のプロフィールデータを取得
   useEffect(() => {
     const fetchProfile = async () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -53,13 +54,24 @@ export default function Profile() {
     fetchProfile();
   }, [supabase]);
 
+  // 2. 변경 내용을 Supabase에 저장
   // 2. 変更内容をSupabaseに保存（更新）
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 文字数による制限チェック（念のためのバリデーション）
-    if (profile.nickname.length > NICKNAME_MAX_CHARS || profile.bio.length > BIO_MAX_CHARS) {
-      alert('文字数制限を超えています。 / 글자 수 제한을 초과했습니다.');
+    // 💡 1. ニックネームの前後の空白を消去し、空白だけの入력을弾く
+    const trimmedNickname = profile.nickname.trim();
+    if (!trimmedNickname) {
+      alert('닉네임을 입력해주세요. / ニックネームを入力してください。');
+      return;
+    }
+
+    // 💡 2. アスキーアート・縦読み荒らし対策: 3回以上連続する改行を、2回に制限する
+    const sanitizedBio = profile.bio.trim().replace(/\n{3,}/g, '\n\n');
+
+    // 💡 3. 文字数による制限チェック（念のための最終バリデーション）
+    if (trimmedNickname.length > NICKNAME_MAX_CHARS || sanitizedBio.length > BIO_MAX_CHARS) {
+      alert('글자 수 제한을 초과했습니다. / 文字数制限を超えています。');
       return;
     }
 
@@ -76,14 +88,14 @@ export default function Profile() {
     const { error } = await supabase
       .from('profiles')
       .update({
-        nickname: profile.nickname,
+        nickname: trimmedNickname, // 💡 整形済みのデータを保存
         mbti: profile.mbti,
-        bio: profile.bio,
+        bio: sanitizedBio, // 💡 整形済みのデータを保存
       })
       .eq('id', user.id);
 
     if (error) {
-      alert(`保存エラーが発生しました: ${error.message}`);
+      alert(`저장 중 오류가 발생했습니다 / 保存エラーが発生しました: ${error.message}`);
       setSaving(false);
     } else {
       alert('저장되었습니다. / 保存されました。');
