@@ -113,12 +113,18 @@ export default function ReplyLetterPage() {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!content.trim()) {
+    // 💡 1. 前後の空白を消去し、空入力をブロック
+    const trimmedContent = content.trim();
+    if (!trimmedContent) {
       alert('답장 내용을 입력해주세요. / 返事の内容を入力してください。');
       return;
     }
 
-    if (content.length > CONTENT_MAX_CHARS) {
+    // 💡 2. アスキーアート・縦読み荒らし対策: 3回以上連続하는 改行を2回に制限
+    const sanitizedContent = trimmedContent.replace(/\n{3,}/g, '\n\n');
+
+    // 💡 3. 整形後の文字列で最終的な文字数チェック
+    if (sanitizedContent.length > CONTENT_MAX_CHARS) {
       alert('글자 수 제한을 초과했습니다. / 文字数制限を超えています。');
       return;
     }
@@ -143,7 +149,7 @@ export default function ReplyLetterPage() {
       .insert({
         sender_id: user.id,
         receiver_id: receiverId,
-        content: content.trim(),
+        content: sanitizedContent, // 💡 整形済みのデータを保存
       });
 
     if (error) {
