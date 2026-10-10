@@ -10,7 +10,7 @@ const MAX_LETTERS_PER_MONTH = 10;
 // 💡 実際の処理を行うコンポーネントを分離
 function NewLetterContent() {
   const router = useRouter();
-  const searchParams = useSearchParams(); // 💡 クエリパラメータを取得
+  const searchParams = useSearchParams();
   const receiverId = searchParams.get('receiver_id');
   const supabase = createClient();
 
@@ -36,10 +36,10 @@ function NewLetterContent() {
           return;
         }
 
-        // 1. 宛先のプロフィール取得
+        // 1. 宛先のプロフィール取得 (native_languageも取得！)
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .select('id, nickname')
+          .select('id, nickname, native_language')
           .eq('id', receiverId)
           .single();
 
@@ -98,7 +98,6 @@ function NewLetterContent() {
       if (error) throw error;
 
       alert('편지를 성공적으로 보냈습니다! / 手紙を無事に送信しました！');
-      // 💡 ここを /letters から /users に変更したわ！
       router.push('/users');
     } catch (error: any) {
       console.error(error);
@@ -117,6 +116,11 @@ function NewLetterContent() {
   }
 
   const isOverLimit = remainingCount !== null && remainingCount <= 0;
+
+  // 💡 native_languageに基づいて国旗を判定
+  const isKo = receiver?.native_language === 'ko' || receiver?.native_language === 'Korean';
+  const isJa = receiver?.native_language === 'ja' || receiver?.native_language === 'Japanese';
+  const flagEmoji = isKo ? '🇰🇷' : isJa ? '🇯🇵' : '☕';
 
   return (
     <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7' }}>
@@ -161,7 +165,7 @@ function NewLetterContent() {
           <div className="bg-[#f4efe8] p-4 rounded-lg mb-8 flex items-center gap-4 border border-[#e6dfd5]">
             <span className="text-sm font-bold text-[#a39891] w-12 text-center">To.</span>
             <div className="flex items-center gap-2">
-              <span className="text-2xl">☕️</span>
+              <span className="text-2xl drop-shadow-sm">{flagEmoji}</span>
               <span className="text-2xl font-bold text-[#4a3b32]">{receiver?.nickname}</span>
             </div>
           </div>
@@ -198,7 +202,7 @@ function NewLetterContent() {
   );
 }
 
-// 💡 大元のページコンポーネント（ここでSuspenseで包む）
+// 💡 大元のページコンポーネント
 export default function NewLetter() {
   return (
     <Suspense fallback={
