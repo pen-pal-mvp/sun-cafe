@@ -74,17 +74,18 @@ export default function Letters() {
           } else {
             const senderIds = Array.from(new Set(filteredLetters.map(l => l.sender_id)));
             
+            // 💡 native_language を取得するように変更
             const { data: profilesData, error: profilesError } = await supabase
               .from('profiles')
-              .select('id, nickname, is_deleted')
+              .select('id, nickname, is_deleted, native_language')
               .in('id', senderIds);
               
             if (profilesError) throw new Error(profilesError.message);
 
-            const profileMap: Record<string, { nickname: string, is_deleted: boolean }> = {};
+            const profileMap: Record<string, { nickname: string, is_deleted: boolean, native_language: string }> = {};
             if (profilesData) {
               profilesData.forEach(p => {
-                profileMap[p.id] = { nickname: p.nickname, is_deleted: p.is_deleted };
+                profileMap[p.id] = { nickname: p.nickname, is_deleted: p.is_deleted, native_language: p.native_language || 'ko' };
               });
             }
 
@@ -94,7 +95,7 @@ export default function Letters() {
                 ? '탈퇴한 유저 / 退会したユーザー' 
                 : (profile?.nickname || '이름 없음 (名無し)');
                 
-              return { ...letter, sender_name: senderName };
+              return { ...letter, sender_name: senderName, sender_native: profile?.native_language };
             });
             
             if (isMounted) setLetters(enrichedLetters);
@@ -160,7 +161,6 @@ export default function Letters() {
 
   return (
     <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7' }}>
-      {/* 💡 スマホ対応のためレイアウトを変更したヘッダー */}
       <header className="flex flex-col lg:flex-row justify-between items-center gap-6 p-6 lg:px-8 bg-[#f4efe8] border-b border-[#e6dfd5]">
         <div className="flex flex-col sm:flex-row gap-4 items-center w-full lg:w-auto">
           <h1 
@@ -230,20 +230,28 @@ export default function Letters() {
           </div>
         ) : (
           <div className="space-y-6">
-            {letters.map((letter) => (
-              <div key={letter.id} className="group bg-white p-8 rounded-2xl shadow-sm border border-[#e6dfd5] hover:shadow-md hover:border-[#879977] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex gap-6 items-center" onClick={() => router.push(`/letters/${letter.id}`)}>
-                <div className="w-14 h-14 bg-[#f4efe8] group-hover:bg-[#eaf0e6] transition-colors rounded-full flex items-center justify-center text-2xl flex-shrink-0 shadow-inner">
-                  ☕
-                </div>
-                <div className="flex-1 overflow-hidden">
-                  <div className="flex justify-between items-center">
-                    <p className="font-bold text-[#4a3b32] text-2xl truncate pr-4">{letter.sender_name}</p>
-                    <span className="text-[#879977] text-sm font-semibold tracking-widest font-mono flex-shrink-0">{formatDate(letter.created_at)}</span>
+            {letters.map((letter) => {
+              // 💡 native_language に基づいて国旗を設定
+              const isKo = letter.sender_native === 'ko' || letter.sender_native === 'Korean';
+              const isJa = letter.sender_native === 'ja' || letter.sender_native === 'Japanese';
+              const flagEmoji = isKo ? '🇰🇷' : isJa ? '🇯🇵' : '☕';
+
+              return (
+                <div key={letter.id} className="group bg-white p-8 rounded-2xl shadow-sm border border-[#e6dfd5] hover:shadow-md hover:border-[#879977] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex gap-6 items-center" onClick={() => router.push(`/letters/${letter.id}`)}>
+                  {/* 💡 国旗を表示 */}
+                  <div className="w-14 h-14 bg-[#f4efe8] group-hover:bg-[#eaf0e6] transition-colors rounded-full flex items-center justify-center text-4xl flex-shrink-0 drop-shadow-sm">
+                    {flagEmoji}
                   </div>
-                  <p className="text-[#a39891] text-lg mt-2 font-medium">새로운 편지가 도착했습니다. / 新しい手紙が届きました ✉</p>
+                  <div className="flex-1 overflow-hidden">
+                    <div className="flex justify-between items-center">
+                      <p className="font-bold text-[#4a3b32] text-2xl truncate pr-4">{letter.sender_name}</p>
+                      <span className="text-[#879977] text-sm font-semibold tracking-widest font-mono flex-shrink-0">{formatDate(letter.created_at)}</span>
+                    </div>
+                    <p className="text-[#a39891] text-lg mt-2 font-medium">새로운 편지가 도착했습니다. / 新しい手紙が届きました ✉</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
