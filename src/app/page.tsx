@@ -37,8 +37,17 @@ export default function Home() {
 
   // 💡 【会員の動線】ログインボタン：マジックリンクを送信して /letters へ
   const handleLogin = async () => {
-    if (!email) {
+    // 💡 1. 空白だけの入力を弾く（トリミング）
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
       alert('이메일을 입력해주세요. / メールアドレスを入力してください。');
+      return;
+    }
+
+    // 💡 2. メールアドレスの形式チェック（正規表現）
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      alert('올바른 이메일 형식이 아닙니다. / 正しいメールアドレスの形式で入力してください。');
       return;
     }
 
@@ -50,7 +59,7 @@ export default function Home() {
       const { data: profile } = await supabase
         .from('profiles')
         .select('is_deleted')
-        .eq('email', email)
+        .eq('email', trimmedEmail)
         .maybeSingle();
 
       // 프로필이 존재하고, is_deleted가 true인 경우 로그인 차단
@@ -63,7 +72,7 @@ export default function Home() {
 
       // 2. 問題なければマジックリンク送信
       const { error } = await supabase.auth.signInWithOtp({
-        email,
+        email: trimmedEmail,
         options: {
           emailRedirectTo: `${window.location.origin}/letters`,
           shouldCreateUser: false, // 未登録メールをブロック
@@ -105,7 +114,7 @@ export default function Home() {
             placeholder="이메일 / メールアドレス" 
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            maxLength={254}
+            maxLength={254} // 💡 セキュリティ対策：長すぎる入力をブロック
             className="px-4 py-3 border border-[#d3c9c1] rounded-md text-lg text-[#4a3b32] focus:outline-none focus:ring-2 focus:ring-[#879977] w-full sm:w-64 bg-white placeholder-[#a39891]"
           />
           <div className="flex gap-4 w-full sm:w-auto">
@@ -161,13 +170,14 @@ export default function Home() {
                   key={user.id} 
                   className={`relative overflow-hidden ${bgGradient} p-8 rounded-2xl shadow-sm border border-[#e6dfd5] hover:shadow-md transition-shadow flex items-center`}
                 >
-                  <div className="w-[200px] border-r border-[#efebe3] pr-6 mr-6 flex-shrink-0 flex flex-col gap-3 relative z-10">
+                  {/* 💡 先ほどのデザイン修正（MBTIと名前の中央揃え）をここにも適用しました */}
+                  <div className="w-[200px] border-r border-[#efebe3] pr-6 mr-6 flex-shrink-0 flex flex-col items-center justify-center gap-3 relative z-10">
                     {user.mbti && (
                       <span className="inline-block px-4 py-2 bg-[#f0e6dd] text-[#7a5c4d] font-bold rounded-full text-center text-lg w-fit shadow-sm">
                         {user.mbti}
                       </span>
                     )}
-                    <span className="font-bold text-[#4a3b32] text-2xl truncate" title={user.nickname}>
+                    <span className="font-bold text-[#4a3b32] text-2xl truncate text-center w-full" title={user.nickname}>
                       {user.nickname}
                     </span>
                   </div>
@@ -179,7 +189,7 @@ export default function Home() {
                   )}
 
                   <div className="flex-1 relative z-10">
-                    <p className="text-[#5c4d44] text-xl leading-relaxed whitespace-pre-wrap">
+                    <p className="text-[#5c4d44] text-xl leading-relaxed whitespace-pre-wrap line-clamp-3">
                       {user.bio || '자기소개가 없습니다. / 自己紹介がありません。'}
                     </p>
                   </div>
