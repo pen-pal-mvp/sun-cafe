@@ -16,13 +16,16 @@ export default function LetterDetail() {
   
   const [isTranslating, setIsTranslating] = useState(false);
   const [translatedText, setTranslatedText] = useState<string | null>(null);
+  
+  // 💡 追加: 読み手（自分）の母国語を保存するState
+  const [viewerNativeLanguage, setViewerNativeLanguage] = useState<string>('ja');
 
   const dummyData: Record<string, any> = {
     'dummy-1': {
       id: 'dummy-1',
       sender_id: 'dummy-sender-1',
       sender_name: '지은 (Ji-eun)',
-      sender_native: 'ko', // ダミーデータにも言語を追加
+      sender_native: 'ko',
       created_at: new Date().toISOString(),
       content: '안녕하세요! 일본 문화에 관심이 많아요. 같이 언어 교환해요! / こんにちは！日本文化に興味があります。一緒に言語交換しましょう！\n\n앞으로 잘 부탁드립니다. / これからよろしくお願いします。',
       is_deleted: false
@@ -40,7 +43,7 @@ export default function LetterDetail() {
       id: 'dummy-3',
       sender_id: 'dummy-sender-3',
       sender_name: '켄타 (Kenta)',
-      sender_native: 'ja', // 켄타は日本語
+      sender_native: 'ja',
       created_at: new Date(Date.now() - 172800000).toISOString(),
       content: '처음 뵙겠습니다! 최근 한국어 공부를 시작했습니다. / はじめまして！最近韓国語の勉強を始めました。\n\n아직 서툴지만 잘 부탁드립니다. / まだ下手ですがよろしくお願いします。',
       is_deleted: false
@@ -75,18 +78,29 @@ export default function LetterDetail() {
           throw new Error('편지를 찾을 수 없습니다. / 手紙が見つかりません。');
         }
 
-        // 💡 native_languageも取得！
+        // 送信者のプロフィール情報を取得
         const { data: profileData } = await supabase
           .from('profiles')
           .select('nickname, is_deleted, native_language')
           .eq('id', letterData.sender_id)
           .single();
 
+        // 💡 追加: 読み手（自分）のプロフィール情報を取得して母国語をセット
+        const { data: viewerData } = await supabase
+          .from('profiles')
+          .select('native_language')
+          .eq('id', user.id)
+          .single();
+          
+        if (viewerData?.native_language) {
+          setViewerNativeLanguage(viewerData.native_language);
+        }
+
         setLetter({
           ...letterData,
           sender_name: profileData?.is_deleted ? '탈퇴한 유저 / 退会したユーザー' : (profileData?.nickname || '이름 없음 (名無し)'),
           is_deleted: profileData?.is_deleted || false,
-          sender_native: profileData?.native_language || 'ko' // 言語情報もセット
+          sender_native: profileData?.native_language || 'ko'
         });
 
       } catch (error: any) {
@@ -150,7 +164,11 @@ export default function LetterDetail() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text: letter.content }),
+        // 💡 変更: textだけでなく、読み手の母国語(target_language)も送信する
+        body: JSON.stringify({ 
+          text: letter.content,
+          target_language: viewerNativeLanguage
+        }),
       });
 
       const data = await res.json();
@@ -196,7 +214,6 @@ export default function LetterDetail() {
     );
   }
 
-  // 💡 国旗の絵文字を判定
   const isKo = letter.sender_native === 'ko' || letter.sender_native === 'Korean';
   const isJa = letter.sender_native === 'ja' || letter.sender_native === 'Japanese';
   const flagEmoji = isKo ? '🇰🇷' : isJa ? '🇯🇵' : '☕';
@@ -232,7 +249,6 @@ export default function LetterDetail() {
             <div>
               <p className="text-sm font-bold text-[#a39891] mb-2">From.</p>
               <div className="flex items-center gap-3">
-                {/* 💡 ☕️の代わりに国旗を表示 */}
                 <span className="text-4xl drop-shadow-sm">{flagEmoji}</span>
                 <p className={`text-2xl sm:text-3xl font-bold ${letter.is_deleted ? 'text-[#a39891]' : 'text-[#4a3b32]'}`}>
                   {letter.sender_name}
