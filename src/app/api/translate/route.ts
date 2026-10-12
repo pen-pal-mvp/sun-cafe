@@ -3,13 +3,13 @@ import { Redis } from '@upstash/redis';
 import { Ratelimit } from '@upstash/ratelimit';
 import { createClient } from '@/utils/supabase/server';
 
-// 💡 Upstash Redisの設定（環境変数から読み込み）
+// 💡 Upstash Redisの設定
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL || '',
   token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
 });
 
-// 💡 レートリミットの設定：24시간（1일）につき3回まで (実質11回)
+// 💡 レートリミットの設定
 const ratelimit = new Ratelimit({
   redis: redis,
   limiter: Ratelimit.fixedWindow(11, "24 h"),
@@ -17,7 +17,6 @@ const ratelimit = new Ratelimit({
 
 export async function POST(req: Request) {
   try {
-    // 1. ユーザー認証（誰がリクエストしているか特定するため）
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -25,7 +24,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: '로그인이 필요합니다. / ログインが必要です。' }, { status: 401 });
     }
 
-    // 2. レートリミットのチェック（user.idをキーにしてカウント）
     const { success } = await ratelimit.limit(user.id);
 
     if (!success) {
@@ -34,7 +32,6 @@ export async function POST(req: Request) {
       }, { status: 429 });
     }
 
-    // 3. テキストと「読み手の母国語」のバリデーション
     const { text, target_language } = await req.json();
 
     if (!text) {
@@ -45,49 +42,57 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'API 키가 설정되지 않았습니다. / APIキーが設定されていません。' }, { status: 500 });
     }
 
-    // ターゲット言語を明確な英語名にマッピング
     const targetLangName = (target_language === 'ko' || target_language === 'Korean') ? 'Korean' : 'Japanese';
 
-    // 4. OpenAI API にリクエストを送信 (AIの要約・省略を禁止する強力なプロンプト)
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a highly accurate translation assistant for a pen-pal app. 
-Target Language: ${targetLangName}
+    // 💡 解決策: テキストを改行で分割して配列にする
+    const lines = text.split('\n');
+    const translatedLines = [];
 
-Follow these strict rules:
-1. The final output MUST be entirely in the Target Language.
-2. If a sentence or phrase is ALREADY in the Target Language, keep it exactly as it is.
-3. If a sentence or phrase is in another language, translate it into the Target Language.
-4. Keep the exact same number of lines, paragraphs, and structure as the original text. DO NOT summarize, merge, or delete any repetitive sentences.
-5. Output ONLY the final text without any conversational filler.`,
-          },
-          {
-            role: 'user',
-            content: text,
-          },
-        ],
-        temperature: 0.1, // AIの勝手な創作を防ぐために低く設定
-      }),
+    // 💡 1行ずつ個別にOpenAIへリクエストを送る（並列処理）
+    const translationPromises = lines.map(async (line: string) => {
+      // 空白行は翻訳せずそのまま返す
+      if (!line.trim()) {
+        return line;
+      }
+
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a translation tool. Translate the input into ${targetLangName}. If it is already in ${targetLangName}, output it exactly as is. Output ONLY the translation, no extra words.`,
+            },
+            {
+              role: 'user',
+              content: line, // 1行だけを渡す
+            },
+          ],
+          temperature: 0.1,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('OpenAI API request failed');
+      }
+
+      const data = await response.json();
+      return data.choices[0].message.content;
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error?.message || 'OpenAI API request failed');
-    }
-
-    const translatedText = data.choices[0].message.content;
+    // すべての行の翻訳が完了するのを待つ
+    const results = await Promise.all(translationPromises);
+    
+    // 翻訳された行を再び改行で結合する
+    const translatedText = results.join('\n');
 
     return NextResponse.json({ translatedText });
+
   } catch (error: any) {
     console.error('Translation Error:', error);
     return NextResponse.json({ error: '번역 서버 오류 / 翻訳サーバーエラー' }, { status: 500 });
