@@ -69,6 +69,14 @@ export default function Profile() {
     // 💡 2. アスキーアート・縦読み荒らし対策: 3回以上連続する改行を、2回に制限する
     const sanitizedBio = profile.bio.trim().replace(/\n{3,}/g, '\n\n');
 
+    // 💡 外部連絡先・リンクのブロック処理（正規表現）
+    const prohibitedRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})|(https?:\/\/[^\s]+)|(www\.[^\s]+)|((?:line|kakao|카톡|카카오|라인|ID)[\s:：-]*[a-zA-Z0-9_.-]+)/i;
+
+    if (prohibitedRegex.test(trimmedNickname) || prohibitedRegex.test(sanitizedBio)) {
+      alert('⚠️ 외부 연락처(이메일, SNS ID)나 링크 입력은 금지되어 있습니다.\n\n⚠️ 外部連絡先（メール、SNSのID）やリンクの記入は禁止されています。');
+      return;
+    }
+
     // 💡 3. 文字数による制限チェック（念のための最終バリデーション）
     if (trimmedNickname.length > NICKNAME_MAX_CHARS || sanitizedBio.length > BIO_MAX_CHARS) {
       alert('글자 수 제한을 초과했습니다. / 文字数制限を超えています。');

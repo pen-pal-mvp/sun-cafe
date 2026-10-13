@@ -19,7 +19,6 @@ export default function NewProfile() {
 
   useEffect(() => {
     const initProfile = async () => {
-      // 💡 認証のタイムラグを防ぐため、数回リトライして確実にユーザー情報を捕まえる！
       let user = null;
       for (let i = 0; i < 3; i++) {
         const { data } = await supabase.auth.getUser();
@@ -27,12 +26,10 @@ export default function NewProfile() {
           user = data.user;
           break;
         }
-        // セッションが取れなかったら0.5秒待つ
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       if (!user) {
-        // それでもダメなら未ログインとしてトップへ
         window.location.href = '/';
         return;
       }
@@ -47,18 +44,22 @@ export default function NewProfile() {
     e.preventDefault();
     if (!userId) return;
 
-    // 💡 1. ニックネームと自己紹介の「前後の空白」を消去し、空白だけの入力を弾く
     const trimmedNickname = nickname.trim();
     if (!trimmedNickname) {
       alert('닉네임을 입력해주세요. / ニックネームを入力してください。');
       return;
     }
 
-    // 💡 2. アスキーアート・縦読み荒らし対策: 3回以上連続する改行を、2回に制限する
-    // 例: \n\n\n\n -> \n\n に置換されるわ
     const sanitizedBio = bio.trim().replace(/\n{3,}/g, '\n\n');
 
-    // 💡 3. 万が一、フロント側の制限をすり抜けた場合（コピペ等）の最終文字数チェック
+    // 💡 外部連絡先・リンクのブロック処理（正規表現）
+    const prohibitedRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})|(https?:\/\/[^\s]+)|(www\.[^\s]+)|((?:line|kakao|카톡|카카오|라인|ID)[\s:：-]*[a-zA-Z0-9_.-]+)/i;
+
+    if (prohibitedRegex.test(trimmedNickname) || prohibitedRegex.test(sanitizedBio)) {
+      alert('⚠️ 외부 연락처(이메일, SNS ID)나 링크 입력은 금지되어 있습니다.\n\n⚠️ 外部連絡先（メール、SNSのID）やリンクの記入は禁止されています。');
+      return;
+    }
+
     if (trimmedNickname.length > 20 || sanitizedBio.length > 144) {
        alert('글자 수 제한을 초과했습니다. / 文字数制限を超過しています。');
        return;
@@ -69,9 +70,9 @@ export default function NewProfile() {
     const { error: profileError } = await supabase
       .from('profiles')
       .update({
-        nickname: trimmedNickname, // 💡 整形済みのデータを保存
+        nickname: trimmedNickname,
         mbti: mbti,
-        bio: sanitizedBio, // 💡 整形済みのデータを保存
+        bio: sanitizedBio,
       })
       .eq('id', userId);
 
@@ -81,7 +82,6 @@ export default function NewProfile() {
       return;
     }
 
-    // 保存できたらユーザー一覧画面（/users）へ遷移！
     window.location.href = '/users';
   };
 
@@ -136,25 +136,25 @@ export default function NewProfile() {
               onChange={(e) => setMbti(e.target.value)}
               className="w-full px-4 py-3 border border-[#d3c9c1] rounded-md text-lg text-[#4a3b32] bg-white focus:outline-none focus:ring-2 focus:ring-[#879977]"
             >
-              <optgroup label="Analyst / 分析家">
+              <optgroup label="Analyst / 分析가">
                 <option value="INTJ">INTJ</option>
                 <option value="INTP">INTP</option>
                 <option value="ENTJ">ENTJ</option>
                 <option value="ENTP">ENTP</option>
               </optgroup>
-              <optgroup label="Diplomat / 外交官">
+              <optgroup label="Diplomat / 외교관">
                 <option value="INFJ">INFJ</option>
                 <option value="INFP">INFP</option>
                 <option value="ENFJ">ENFJ</option>
                 <option value="ENFP">ENFP</option>
               </optgroup>
-              <optgroup label="Sentinel / 番人">
+              <optgroup label="Sentinel / 관리자">
                 <option value="ISTJ">ISTJ</option>
                 <option value="ISFJ">ISFJ</option>
                 <option value="ESTJ">ESTJ</option>
                 <option value="ESFJ">ESFJ</option>
               </optgroup>
-              <optgroup label="Explorer / 探検家">
+              <optgroup label="Explorer / 탐험가">
                 <option value="ISTP">ISTP</option>
                 <option value="ISFP">ISFP</option>
                 <option value="ESTP">ESTP</option>

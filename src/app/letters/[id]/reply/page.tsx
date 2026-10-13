@@ -113,7 +113,7 @@ export default function ReplyLetterPage() {
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 💡 1. 前後の空白を消去し、空入力をブロック
+    // 💡 1. 前後の空白を消去し、空入력을ブロック
     const trimmedContent = content.trim();
     if (!trimmedContent) {
       alert('답장 내용을 입력해주세요. / 返事の内容を入力してください。');
@@ -122,6 +122,14 @@ export default function ReplyLetterPage() {
 
     // 💡 2. アスキーアート・縦読み荒らし対策: 3回以上連続하는 改行を2回に制限
     const sanitizedContent = trimmedContent.replace(/\n{3,}/g, '\n\n');
+
+    // 💡 外部連絡先・リンクのブロック処理（正規表現）
+    const prohibitedRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})|(https?:\/\/[^\s]+)|(www\.[^\s]+)|((?:line|kakao|카톡|카카오|라인|ID)[\s:：-]*[a-zA-Z0-9_.-]+)/i;
+
+    if (prohibitedRegex.test(sanitizedContent)) {
+      alert('⚠️ 외부 연락처(이메일, SNS ID)나 링크 입력은 금지되어 있습니다.\n\n⚠️ 外部連絡先（メール、SNSのID）やリンクの記入は禁止されています。');
+      return;
+    }
 
     // 💡 3. 整形後の文字列で最終的な文字数チェック
     if (sanitizedContent.length > CONTENT_MAX_CHARS) {
