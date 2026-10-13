@@ -17,8 +17,13 @@ export default function LetterDetail() {
   const [isTranslating, setIsTranslating] = useState(false);
   const [translatedText, setTranslatedText] = useState<string | null>(null);
   
-  // 💡 追加: 読み手（自分）の母国語を保存するState
+  // 読み手（自分）の母国語を保存するState
   const [viewerNativeLanguage, setViewerNativeLanguage] = useState<string>('ja');
+
+  // 💡 追加: 現在時刻を保存するState (36時間ロック判定用)
+  const [nowTime, setNowTime] = useState(new Date().getTime());
+  const [isLocked, setIsLocked] = useState(false);
+  const [remainingTimeInfo, setRemainingTimeInfo] = useState({ hours: 0, minutes: 0 });
 
   const dummyData: Record<string, any> = {
     'dummy-1': {
@@ -26,7 +31,8 @@ export default function LetterDetail() {
       sender_id: 'dummy-sender-1',
       sender_name: '지은 (Ji-eun)',
       sender_native: 'ko',
-      created_at: new Date().toISOString(),
+      // 💡 ダミーデータも「今」より前に送信されたように調整
+      created_at: new Date(Date.now() - 40 * 60 * 60 * 1000).toISOString(), // 40時間前（開封可能）
       content: '안녕하세요! 일본 문화에 관심이 많아요. 같이 언어 교환해요! / こんにちは！日本文化に興味があります。一緒に言語交換しましょう！\n\n앞으로 잘 부탁드립니다. / これからよろしくお願いします。',
       is_deleted: false
     },
@@ -35,7 +41,7 @@ export default function LetterDetail() {
       sender_id: 'dummy-sender-2',
       sender_name: '민수 (Min-su)',
       sender_native: 'ko',
-      created_at: new Date(Date.now() - 86400000).toISOString(),
+      created_at: new Date(Date.now() - 86400000).toISOString(), // 24時間前（まだロック中！）
       content: '도쿄 여행을 계획 중입니다. 맛집을 추천해주실 수 있나요? / 東京旅行を計画中です。美味しいお店をおすすめしてもらえますか？\n\n스시를 아주 좋아합니다! / 寿司が大好きです！',
       is_deleted: false
     },
@@ -51,56 +57,88 @@ export default function LetterDetail() {
   };
 
   useEffect(() => {
+    // 💡 タイマー設定：1分ごとに現在時刻を更新してロック状態をチェック
+    const timer = setInterval(() => {
+      setNowTime(new Date().getTime());
+    }, 60000);
+
     const fetchLetterDetail = async () => {
       try {
+        let fetchedLetterData = null;
+        let senderProfile = null;
+
         if (letterId.startsWith('dummy-')) {
-          setLetter(dummyData[letterId] || null);
-          setLoading(false);
-          return;
-        }
-
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          alert('로그인 세션이 없습니다. / ログインセッションがありません。');
-          router.push('/');
-          return;
-        }
-
-        const { data: letterData, error: letterError } = await supabase
-          .from('letters')
-          .select('*')
-          .eq('id', letterId)
-          .eq('receiver_id', user.id)
-          .single();
-
-        if (letterError || !letterData) {
-          throw new Error('편지를 찾을 수 없습니다. / 手紙が見つかりません。');
-        }
-
-        // 送信者のプロフィール情報を取得
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('nickname, is_deleted, native_language')
-          .eq('id', letterData.sender_id)
-          .single();
-
-        // 💡 追加: 読み手（自分）のプロフィール情報を取得して母国語をセット
-        const { data: viewerData } = await supabase
-          .from('profiles')
-          .select('native_language')
-          .eq('id', user.id)
-          .single();
+          fetchedLetterData = dummyData[letterId] || null;
+          senderProfile = {
+            nickname: fetchedLetterData?.sender_name,
+            is_deleted: fetchedLetterData?.is_deleted,
+            native_language: fetchedLetterData?.sender_native
+          };
+          if (!fetchedLetterData) {
+            setLoading(false);
+            return;
+          }
+        } else {
+          const { data: { user } } = await supabase.auth.getUser();
           
-        if (viewerData?.native_language) {
-          setViewerNativeLanguage(viewerData.native_language);
+          if (!user) {
+            alert('로그인 세션이 없습니다. / ログインセッションがありません。');
+            router.push('/');
+            return;
+          }
+
+          const { data: letterData, error: letterError } = await supabase
+            .from('letters')
+            .select('*')
+            .eq('id', letterId)
+            .eq('receiver_id', user.id)
+            .single();
+
+          if (letterError || !letterData) {
+            throw new Error('편지를 찾을 수 없습니다. / 手紙が見つかりません。');
+          }
+          fetchedLetterData = letterData;
+
+          // 送信者のプロフィール情報を取得
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('nickname, is_deleted, native_language')
+            .eq('id', letterData.sender_id)
+            .single();
+          senderProfile = profileData;
+
+          // 読み手（自分）のプロフィール情報を取得して母国語をセット
+          const { data: viewerData } = await supabase
+            .from('profiles')
+            .select('native_language')
+            .eq('id', user.id)
+            .single();
+            
+          if (viewerData?.native_language) {
+            setViewerNativeLanguage(viewerData.native_language);
+          }
+        }
+
+        // 💡 ここで 36時間ロックの判定を行う！
+        const sendTime = new Date(fetchedLetterData.created_at).getTime();
+        const unlockTime = sendTime + (36 * 60 * 60 * 1000); // 36時間後
+        const currentTime = new Date().getTime();
+        
+        if (currentTime < unlockTime) {
+          // まだ36時間経っていない場合
+          setIsLocked(true);
+          const remainingMs = unlockTime - currentTime;
+          setRemainingTimeInfo({
+            hours: Math.floor(remainingMs / (1000 * 60 * 60)),
+            minutes: Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60))
+          });
         }
 
         setLetter({
-          ...letterData,
-          sender_name: profileData?.is_deleted ? '탈퇴한 유저 / 退会したユーザー' : (profileData?.nickname || '이름 없음 (名無し)'),
-          is_deleted: profileData?.is_deleted || false,
-          sender_native: profileData?.native_language || 'ko'
+          ...fetchedLetterData,
+          sender_name: senderProfile?.is_deleted ? '탈퇴한 유저 / 退会したユーザー' : (senderProfile?.nickname || '이름 없음 (名無し)'),
+          is_deleted: senderProfile?.is_deleted || false,
+          sender_native: senderProfile?.native_language || 'ko'
         });
 
       } catch (error: any) {
@@ -115,7 +153,27 @@ export default function LetterDetail() {
     if (letterId) {
       fetchLetterDetail();
     }
+
+    return () => clearInterval(timer);
   }, [letterId, supabase, router]);
+
+  // 💡 ロック中も、時間が経つごとに残り時間を再計算する副作用
+  useEffect(() => {
+    if (letter && isLocked) {
+      const sendTime = new Date(letter.created_at).getTime();
+      const unlockTime = sendTime + (36 * 60 * 60 * 1000);
+      
+      if (nowTime >= unlockTime) {
+        setIsLocked(false); // 36時間経ったら自動的にロック解除！
+      } else {
+        const remainingMs = unlockTime - nowTime;
+        setRemainingTimeInfo({
+          hours: Math.floor(remainingMs / (1000 * 60 * 60)),
+          minutes: Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60))
+        });
+      }
+    }
+  }, [nowTime, letter, isLocked]);
 
   const handleBlock = async () => {
     if (!letter?.sender_id || letter.sender_id.startsWith('dummy-')) {
@@ -164,7 +222,6 @@ export default function LetterDetail() {
         headers: {
           'Content-Type': 'application/json',
         },
-        // 💡 変更: textだけでなく、読み手の母国語(target_language)も送信する
         body: JSON.stringify({ 
           text: letter.content,
           target_language: viewerNativeLanguage
@@ -210,6 +267,31 @@ export default function LetterDetail() {
         <Button onClick={() => router.push('/letters')} className="bg-[#879977] text-white font-bold text-xl px-6 py-3 h-auto">
           수신함으로 돌아가기 / 受信箱へ戻る
         </Button>
+      </main>
+    );
+  }
+
+  // 💡 URL直接入力で不正アクセス（まだロック中）してきた場合の表示画面
+  if (isLocked) {
+    return (
+      <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '24px' }}>
+        <div className="bg-white p-10 rounded-2xl shadow-sm border border-[#e6dfd5] text-center max-w-lg w-full">
+          <div className="text-6xl mb-6 drop-shadow-sm">⏳</div>
+          <h2 className="text-2xl font-bold text-[#4a3b32] mb-4">아직 개봉할 수 없습니다.<br/>まだ開封できません。</h2>
+          <p className="text-[#a39891] text-lg mb-8 leading-relaxed">
+            순카페의 편지는 발송 후 36시간이 지나야 개봉할 수 있습니다. 따뜻한 마음으로 조금만 더 기다려주세요.<br/><br/>
+            純喫茶の手紙は送信から36時間後に開封可能になります。温かい気持ちでもう少しだけお待ちください。
+          </p>
+          <div className="bg-[#fdf8f5] py-4 px-6 rounded-xl border border-[#f4dfd0] inline-block mb-8">
+            <p className="text-[#c97a7e] font-bold text-xl">
+              개봉까지 {remainingTimeInfo.hours}시간 {remainingTimeInfo.minutes}분 남음<br/>
+              開封まで {remainingTimeInfo.hours}時間 {remainingTimeInfo.minutes}分
+            </p>
+          </div>
+          <Button onClick={() => router.push('/letters')} className="w-full bg-[#879977] hover:bg-[#738563] text-white font-bold text-xl px-6 py-4 h-auto">
+            수신함으로 돌아가기 / 受信箱へ戻る
+          </Button>
+        </div>
       </main>
     );
   }

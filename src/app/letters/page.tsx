@@ -11,9 +11,15 @@ export default function Letters() {
   const [letters, setLetters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [nowTime, setNowTime] = useState(new Date().getTime()); // 現在時刻のステートを追加
 
   useEffect(() => {
     let isMounted = true;
+
+    // 現在時刻を定期的に更新して、時間が経ったら自動で開封可能にする処理
+    const timer = setInterval(() => {
+      setNowTime(new Date().getTime());
+    }, 60000); // 1分ごとに更新
 
     const checkAuthAndFetchLetters = async () => {
       try {
@@ -74,7 +80,6 @@ export default function Letters() {
           } else {
             const senderIds = Array.from(new Set(filteredLetters.map(l => l.sender_id)));
             
-            // 💡 native_language を取得するように変更
             const { data: profilesData, error: profilesError } = await supabase
               .from('profiles')
               .select('id, nickname, is_deleted, native_language')
@@ -109,7 +114,10 @@ export default function Letters() {
     };
 
     checkAuthAndFetchLetters();
-    return () => { isMounted = false; };
+    return () => { 
+      isMounted = false; 
+      clearInterval(timer);
+    };
   }, [supabase, router]);
 
   const handleLogout = async () => {
@@ -223,29 +231,56 @@ export default function Letters() {
           <div className="text-center py-20 bg-white rounded-2xl border border-[#e6dfd5] shadow-sm">
             <div className="text-7xl mb-6 drop-shadow-sm">📭</div>
             <h3 className="text-2xl font-bold text-[#4a3b32] mb-3">아직 도착한 편지가 없습니다.</h3>
-            {/* 💡 ボタンを削除して余白を整えました */}
             <p className="text-[#a39891] text-lg">まだ手紙は届いていません。</p>
           </div>
         ) : (
           <div className="space-y-6">
             {letters.map((letter) => {
-              // 💡 native_language に基づいて国旗を設定
               const isKo = letter.sender_native === 'ko' || letter.sender_native === 'Korean';
               const isJa = letter.sender_native === 'ja' || letter.sender_native === 'Japanese';
               const flagEmoji = isKo ? '🇰🇷' : isJa ? '🇯🇵' : '☕';
 
+              // 💡 36時間ロックの計算ロジック
+              const sendTime = new Date(letter.created_at).getTime();
+              const unlockTime = sendTime + (36 * 60 * 60 * 1000); // 送信から36時間後
+              const isLocked = nowTime < unlockTime; // まだロック中か？
+              
+              const remainingMs = unlockTime - nowTime;
+              const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
+              const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
+
               return (
-                <div key={letter.id} className="group bg-white p-8 rounded-2xl shadow-sm border border-[#e6dfd5] hover:shadow-md hover:border-[#879977] hover:-translate-y-1 transition-all duration-300 cursor-pointer flex gap-6 items-center" onClick={() => router.push(`/letters/${letter.id}`)}>
-                  {/* 💡 国旗を表示 */}
-                  <div className="w-14 h-14 bg-[#f4efe8] group-hover:bg-[#eaf0e6] transition-colors rounded-full flex items-center justify-center text-4xl flex-shrink-0 drop-shadow-sm">
-                    {flagEmoji}
+                <div 
+                  key={letter.id} 
+                  className={`group bg-white p-8 rounded-2xl shadow-sm border border-[#e6dfd5] transition-all duration-300 flex gap-6 items-center 
+                    ${isLocked ? 'opacity-80 cursor-not-allowed bg-[#faf8f5]' : 'hover:shadow-md hover:border-[#879977] hover:-translate-y-1 cursor-pointer'}`}
+                  onClick={() => {
+                    if (isLocked) {
+                      alert(`아직 개봉할 수 없습니다. 개봉까지 ${remainingHours}시간 ${remainingMinutes}분 남았습니다.\n\nまだ開封できません。開封まであと ${remainingHours}時間 ${remainingMinutes}分 残っています。`);
+                      return;
+                    }
+                    router.push(`/letters/${letter.id}`);
+                  }}
+                >
+                  <div className={`w-14 h-14 ${isLocked ? 'bg-[#e6dfd5]' : 'bg-[#f4efe8] group-hover:bg-[#eaf0e6]'} transition-colors rounded-full flex items-center justify-center text-4xl flex-shrink-0 drop-shadow-sm`}>
+                    {isLocked ? '⏳' : flagEmoji}
                   </div>
                   <div className="flex-1 overflow-hidden">
                     <div className="flex justify-between items-center">
-                      <p className="font-bold text-[#4a3b32] text-2xl truncate pr-4">{letter.sender_name}</p>
-                      <span className="text-[#879977] text-sm font-semibold tracking-widest font-mono flex-shrink-0">{formatDate(letter.created_at)}</span>
+                      <p className={`font-bold text-2xl truncate pr-4 ${isLocked ? 'text-[#a39891]' : 'text-[#4a3b32]'}`}>
+                        {letter.sender_name}
+                      </p>
+                      <span className={`text-sm font-semibold tracking-widest font-mono flex-shrink-0 ${isLocked ? 'text-[#a39891]' : 'text-[#879977]'}`}>
+                        {formatDate(letter.created_at)}
+                      </span>
                     </div>
-                    <p className="text-[#a39891] text-lg mt-2 font-medium">새로운 편지가 도착했습니다. / 新しい手紙が届きました ✉</p>
+                    {isLocked ? (
+                      <p className="text-[#c97a7e] font-bold text-lg mt-2">
+                        개봉까지 {remainingHours}시간 {remainingMinutes}분 남음 / 開封まで {remainingHours}時間 {remainingMinutes}分
+                      </p>
+                    ) : (
+                      <p className="text-[#a39891] text-lg mt-2 font-medium">새로운 편지가 도착했습니다. / 新しい手紙が届きました ✉</p>
+                    )}
                   </div>
                 </div>
               );
