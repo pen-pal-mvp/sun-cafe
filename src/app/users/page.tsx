@@ -87,10 +87,12 @@ function UsersContent() {
       
       const blockedIds = new Set((blocks || []).map(b => b.blocked_id));
 
+      // 💡 ここを変更！ updated_at で優先ソートし、次に created_at でソートする
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .neq('is_deleted', true) 
+        .order('updated_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
       
       if (!error && data && isMounted) {
@@ -191,7 +193,6 @@ function UsersContent() {
                     </div>
                   )}
 
-                  {/* ここが中央揃えになるように修正した部分よ！ */}
                   <div className="w-[200px] border-r border-[#efebe3] pr-6 mr-6 flex-shrink-0 flex flex-col items-center justify-center gap-3 relative z-10">
                     {user.mbti && (
                       <span className="inline-block px-4 py-2 bg-[#f0e6dd] text-[#7a5c4d] font-bold rounded-full text-center text-lg w-fit shadow-sm">
