@@ -19,8 +19,11 @@ export default function Home() {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        // 💡 トップページでも退会した人(is_deleted: true)は表示させない
+        // 💡 トップページでも退회した人(is_deleted: true)は表示させない
         .neq('is_deleted', true)
+        // 💡 1番優先：更新日が新しい順 (nullsFirst: false で更新歴のない人を下に下げる)
+        .order('updated_at', { ascending: false, nullsFirst: false })
+        // 💡 2番優先：アカウント作成日が新しい順
         .order('created_at', { ascending: false })
         .limit(4);
       
@@ -54,15 +57,13 @@ export default function Home() {
     setAuthLoading(true);
 
     try {
-      // 1. 💡 事前に profiles 테이블을 확인하여 탈퇴한 유저인지 체크
-      // 事前に profiles テーブルを確認し、退会済みのユーザーかチェック
+      // 1. 💡 事前に profiles テーブルを確認し、退会済みのユーザーかチェック
       const { data: profile } = await supabase
         .from('profiles')
         .select('is_deleted')
         .eq('email', trimmedEmail)
         .maybeSingle();
 
-      // 프로필이 존재하고, is_deleted가 true인 경우 로그인 차단
       // プロフィールが存在し、is_deleted が true の場合はログインをブロック
       if (profile && profile.is_deleted) {
         alert('등록되지 않은 이메일입니다. 신규가입을 진행해주세요.\n/ 登録されていないメールアドレスです。「新規登録」を行ってください。');
