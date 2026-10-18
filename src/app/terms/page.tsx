@@ -487,4 +487,4 @@ export default function Terms() {
       </div>
     </main>
   );
-}
+}// force update
