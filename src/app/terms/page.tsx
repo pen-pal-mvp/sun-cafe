@@ -215,7 +215,6 @@ export default function Terms() {
             <section>
               <h3 className="text-2xl font-bold text-[#4a3b32] mb-3 border-b-2 border-[#f4efe8] inline-block pb-1">제5조 (서비스의 내용) / 第5条（サービスの内容）</h3>
               <div className="space-y-4 mt-3">
-                {/* 💡 番号を削除し、デザインを統一 */}
                 <div>
                   <p className="text-[#4a3b32]">본 서비스는 다음과 같은 기능을 제공합니다.
                     <br/>- 다른 사용자의 프로필 열람
@@ -232,7 +231,9 @@ export default function Terms() {
                   <p className="text-[#4a3b32]">서비스 내용의 일부는 유료일 수 있습니다.</p>
                   <p className="text-[#5c4d44] ml-4">サービス内容の一部は、有料となる場合があります。</p>
                 </div>
-                <div className="bg-[#fcfaf7] p-5 border border-[#e6dfd5] rounded-lg mt-4">
+                
+                {/* 💡 背景色や枠線を消してフラット化 */}
+                <div className="mt-4">
                   <p className="text-[#4a3b32]">서비스의 품질 유지를 위해 다음과 같은 이용 제한을 두고 있습니다.
                     <br/>- 편지 발송은 1개월에 최대 10통까지 가능합니다.
                     <br/>- 편지 번역 기능의 이용은 1일에 최대 10회까지 가능합니다.
@@ -243,7 +244,7 @@ export default function Terms() {
                     <br/>・手紙の翻訳機能の利用は、1日につき最大10回までとなります。
                     <br/>・送受信された手紙のデータは、送信日から300日経過後に自動的に削除されます。
                   </p>
-                  <div className="mt-5 pt-4 border-t border-[#e6dfd5]">
+                  <div className="mt-5">
                     <p className="text-[#4a3b32] font-semibold">
                       제한된 횟수와 시간 속에서 나누는 이야기이기에, 한 통의 편지가 더욱 진심으로 다가간다고 저희는 믿습니다. 따라서 위와 같은 횟수 제한 및 300일 후 자동 삭제 규정은 어떠한 경우에도 예외 없이 적용되는 점, 따뜻한 마음으로 양해해 주시길 부탁드립니다.
                     </p>
@@ -252,7 +253,8 @@ export default function Terms() {
                     </p>
                   </div>
                 </div>
-                <div className="bg-[#fdf8f5] p-5 border border-[#f4dfd0] rounded-lg mt-4">
+                
+                <div className="mt-4">
                   <p className="text-[#4a3b32] font-bold text-xl mb-2">기다림의 미학 (기능 특칙) / 待つことの美学（機能特則）</p>
                   <p className="text-[#4a3b32]">
                     순카페의 편지는 아날로그 우편의 따뜻함을 소중히 여깁니다. 상대방의 수신함에는 즉시 도착하지만, <b>발송 후 36시간이 지나야 개봉할 수 있는</b> 특별한 사양이 적용되어 있습니다. 편지가 도착하기를 기다리는 설렘의 시간을 즐겨보세요.
@@ -261,7 +263,8 @@ export default function Terms() {
                     純喫茶の手紙はアナログ郵便の温もりを大切にしています。相手の受信箱には即時届きますが、<b>送信から36時間後に開封できるようになる</b>特別な仕様となっております。ゆっくり届くワクワク感と、手紙を待つ豊かな時間をお楽しみください。
                   </p>
                 </div>
-                <div className="bg-[#fcfaf7] p-5 border border-[#e6dfd5] rounded-lg mt-4">
+                
+                <div className="mt-4">
                   <p className="text-[#4a3b32] font-bold text-xl mb-2">발송된 편지의 수정 및 취소 불가 / 送信済み手紙の修正・取り消し不可</p>
                   <p className="text-[#4a3b32]">
                     한 번 우체통에 넣은 편지는 다시 꺼낼 수 없듯이, 발송이 완료된 편지는 어떠한 경우에도 <b>내용 수정이나 전송 취소가 불가능</b>합니다. 전송 버튼을 누르기 전, 신중하게 마음을 담아 확인해주세요.
@@ -289,7 +292,8 @@ export default function Terms() {
                   <p className="text-[#5c4d44] ml-4">韓国国内からの利用者は、Stripeを介して韓国国内発行のクレジットカードおよびチェックカード、ならびにカカオペイ（Kakao Pay）をご利用いただけます。</p>
                 </div>
                 
-                <div className="bg-[#f0e6dd] p-4 border border-[#e6dfd5] rounded-lg mt-4">
+                {/* 💡 背景色や枠線を消してフラット化 */}
+                <div className="mt-4">
                   <p className="text-[#4a3b32] font-bold">구독 요금에 대한 일할 계산 및 환불은 제공되지 않습니다. 서비스 해지 시, 그 즉시 서비스 이용이 종료됩니다.</p>
                   <p className="text-[#5c4d44] ml-4 mt-2 font-bold">サブスクリプション料金の日割り計算および返金は行いません。サービスを解約した時点で、即座にサービスの利用が終了します。</p>
                 </div>
@@ -307,39 +311,39 @@ export default function Terms() {
                 <p className="text-[#4a3b32]">사용자는 다음의 행위를 해서는 안 됩니다.</p>
                 <p className="text-[#5c4d44] mb-2">ユーザーは、以下の行為を行ってはなりません。</p>
                 
-                {/* 💡 番号リスト(ol)から通常のdivの並びに変更 */}
+                {/* 💡 左側の線(pl-4 border-l-2...)や赤いボックスなどの装飾を全て削除してフラット化 */}
                 <div className="space-y-4">
-                  <div className="pl-4 border-l-2 border-[#d3c9c1]">
+                  <div>
                     <p className="text-[#4a3b32]">다른 사용자, 본 서비스, 제3자의 명예나 신용을 훼손하는 행위, 비방, 괴롭힘 행위.</p>
                     <p className="text-[#5c4d44]">他のユーザー、当サービス、第三者の名誉・信用を毀損する行為、誹謗中傷、嫌がらせ行為。</p>
                   </div>
-                  <div className="pl-4 border-l-2 border-[#d3c9c1]">
+                  <div>
                     <p className="text-[#4a3b32]">음란하거나 공서양속에 반하는 내용의 게시, 메시지 전송.</p>
                     <p className="text-[#5c4d44]">わいせつ、公序良俗に反する内容の投稿、メッセージ送信。</p>
                   </div>
-                  <div className="pl-4 border-l-2 border-[#d3c9c1]">
+                  <div>
                     <p className="text-[#4a3b32]">상업적 목적, 정치·종교 활동, 권유 행위.</p>
                     <p className="text-[#5c4d44]">商業目的、政治・宗教活動、勧誘行為。</p>
                   </div>
-                  <div className="pl-4 border-l-2 border-[#d3c9c1]">
+                  <div>
                     <p className="text-[#4a3b32]">자신 또는 제3자의 개인정보를 과도하게 공개하거나 타인의 개인정보를 수집하는 행위.</p>
                     <p className="text-[#5c4d44]">自己または第三者の個人情報を過度に公開、または他者の個人情報を収集する行為。</p>
                   </div>
-                  <div className="bg-red-50 p-4 rounded-lg border border-red-100 pl-4 border-l-4 border-l-red-400">
+                  <div>
                     <p className="text-red-800 font-bold">이메일, 카카오톡, LINE 등 외부 연락처를 교환하거나 기재하여 본 서비스 외부로 유도하는 행위.</p>
                     <p className="text-red-700 font-bold mt-1">メールアドレス、カカオトーク、LINE等の外部連絡先を交換・記載し、当サービス外へ誘導（引き抜き）する行為。</p>
                   </div>
-                  <div className="pl-4 border-l-2 border-[#d3c9c1]">
+                  <div>
                     <p className="text-[#4a3b32]">본 서비스 시스템에 대한 공격, 부정 접속.</p>
                     <p className="text-[#5c4d44]">当サービスのシステムへの攻撃、不正アクセス。</p>
                   </div>
-                  <div className="pl-4 border-l-2 border-[#d3c9c1]">
+                  <div>
                     <p className="text-[#4a3b32]">기타 본 서비스가 부적절하다고 판단하는 행위.</p>
                     <p className="text-[#5c4d44]">その他、当サービスが不適切と判断する行為。</p>
                   </div>
                 </div>
                 
-                <div className="bg-[#f0e6dd] p-4 rounded-lg mt-4">
+                <div className="mt-4">
                   <p className="text-[#4a3b32] font-bold text-sm">※ 위 금지 사항(특히 외부 연락처 교환)을 위반할 경우, 사전 경고 없이 계정이 영구 정지 및 삭제될 수 있습니다.</p>
                   <p className="text-[#5c4d44] font-bold text-sm mt-1">※ 上記の禁止事項（特に外部連絡先の交換）に違反した場合、事前の警告なしにアカウントが永久停止・削除される場合があります。</p>
                 </div>
@@ -487,4 +491,4 @@ export default function Terms() {
       </div>
     </main>
   );
-}// force update
+}
