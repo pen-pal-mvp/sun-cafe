@@ -242,7 +242,6 @@ export default function Terms() {
                     <br/>・手紙の翻訳機能の利用は、1日につき最大10回までとなります。
                     <br/>・送受信された手紙のデータは、送信日から300日経過後に自動的に削除されます。
                   </p>
-                  {/* 💡 ここに温かみのある念押しの文章を追加したわ！ */}
                   <div className="mt-5 pt-4 border-t border-[#e6dfd5]">
                     <p className="text-[#4a3b32] font-semibold">
                       제한된 횟수와 시간 속에서 나누는 이야기이기에, 한 통의 편지가 더욱 진심으로 다가간다고 저희는 믿습니다. 따라서 위와 같은 횟수 제한 및 300일 후 자동 삭제 규정은 어떠한 경우에도 예외 없이 적용되는 점, 따뜻한 마음으로 양해해 주시길 부탁드립니다.
@@ -288,10 +287,13 @@ export default function Terms() {
                   <p className="text-[#4a3b32]">한국 내 사용자는 Stripe를 통해 한국 국내 발행 신용카드, 체크카드 및 카카오페이(Kakao Pay)를 이용할 수 있습니다.</p>
                   <p className="text-[#5c4d44] ml-4">韓国国内からの利用者は、Stripeを介して韓国国内発行のクレジットカードおよびチェックカード、ならびにカカオペイ（Kakao Pay）をご利用いただけます。</p>
                 </div>
+                
+                {/* 💡 訂正: 日割り計算なし＆解約時即サービス終了の条項 */}
                 <div className="bg-[#f0e6dd] p-4 border border-[#e6dfd5] rounded-lg mt-4">
-                  <p className="text-[#4a3b32] font-bold">구독 요금에 대한 일할 계산 및 환불은 제공되지 않습니다. 월중 해지 시에도 해당 결제 주기의 마지막 날까지 서비스 이용이 가능합니다.</p>
-                  <p className="text-[#5c4d44] ml-4 mt-2 font-bold">サブスクリプション料金の日割り計算および返金は行いません。月途中の解約であっても、当該決済周期の最終日までサービスをご利用いただけます。</p>
+                  <p className="text-[#4a3b32] font-bold">구독 요금에 대한 일할 계산 및 환불은 제공되지 않습니다. 서비스 해지 시, 그 즉시 서비스 이용이 종료됩니다.</p>
+                  <p className="text-[#5c4d44] ml-4 mt-2 font-bold">サブスクリプション料金の日割り計算および返金は行いません。サービスを解約した時点で、即座にサービスの利用が終了します。</p>
                 </div>
+
                 <div>
                   <p className="text-[#4a3b32]">결제 정보의 취급 및 오류에 대해서는 Stripe의 약관에 따릅니다.</p>
                   <p className="text-[#5c4d44] ml-4">決済情報の取り扱いやエラーについては、Stripeの規約に準じます。</p>
