@@ -27,6 +27,14 @@ jobs:
       - name: Install Dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start Supabase Local Server
+        run: supabase start
+
       - name: Run Unit Tests (Vitest)
         run: npm run test
 
