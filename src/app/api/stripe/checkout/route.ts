@@ -41,7 +41,7 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       payment_method_types: paymentMethodTypes,
       mode: 'subscription',
-      allow_promotion_codes: true, // 💡 プロモーションコード入力欄を表示
+      // allow_promotion_codes: true, // プロモーションコード入力欄を非表示にするためコメントアウト
       customer_email: email,
       client_reference_id: user_id,
       line_items: [
