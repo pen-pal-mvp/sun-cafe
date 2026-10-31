@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     const nativeLanguage = lang || 'ko';
 
     let priceId = '';
-    let paymentMethodTypes: string[] = [];
+    let paymentMethodTypes: Stripe.Checkout.SessionCreateParams.PaymentMethodType[] = [];
 
     // 韓国語（ko）の場合
     if (nativeLanguage === 'ko' || nativeLanguage === 'Korean') {
@@ -36,12 +36,12 @@ export async function POST(req: Request) {
 
     const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
-    // 💡 完璧なルーティング: 新規なら /profile/new、再등록자（is_returning: true）なら /profile へ自動振り分け！
     const successPath = is_returning ? '/profile' : '/profile/new';
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: paymentMethodTypes,
       mode: 'subscription',
+      allow_promotion_codes: true, // 💡 プロモーションコード入力欄を表示
       customer_email: email,
       client_reference_id: user_id,
       line_items: [
@@ -50,7 +50,6 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      // 💡 取得したルート（successPath）を適用！
       success_url: `${origin}${successPath}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/`,
       metadata: {

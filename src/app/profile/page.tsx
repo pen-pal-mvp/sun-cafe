@@ -11,7 +11,6 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // 프로필 상태 (プロフィール状態)
   const [profile, setProfile] = useState({
     nickname: '',
     mbti: 'ENFP',
@@ -21,55 +20,51 @@ export default function Profile() {
   const NICKNAME_MAX_CHARS = 20;
   const BIO_MAX_CHARS = 144;
 
-  // 1. 페이지 로드 시 Supabase에서 현재 프로필 데이터 가져오기
-  // 1. ページ読み込み時にSupabaseから現在のプロフィールデータを取得
   useEffect(() => {
     const fetchProfile = async () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        // 開発中は未ログインでもそのままUIを表示できるようにする
-        setLoading(false);
+        await supabase.auth.signOut();
+        window.location.href = '/';
         return;
       }
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('nickname, mbti, bio')
+        .select('nickname, mbti, bio, is_deleted')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (error) {
-        console.error('プロフィール取得エラー:', error.message);
-      } else if (data) {
-        setProfile({
-          nickname: data.nickname || '',
-          mbti: data.mbti || 'ENFP',
-          bio: data.bio || ''
-        });
+      // 💡 未決済（profilesにデータが存在しない）または退会済みの場合はトップページ(/)へ強制送還
+      if (error || !data || data.is_deleted) {
+        await supabase.auth.signOut();
+        window.location.href = '/';
+        return;
       }
+
+      setProfile({
+        nickname: data.nickname || '',
+        mbti: data.mbti || 'ENFP',
+        bio: data.bio || ''
+      });
       setLoading(false);
     };
 
     fetchProfile();
   }, [supabase]);
 
-  // 2. 변경 내용을 Supabase에 저장
-  // 2. 変更内容をSupabaseに保存（更新）
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 💡 1. ニックネームの前後の空白を消去し、空白だけの入력을弾く
     const trimmedNickname = profile.nickname.trim();
     if (!trimmedNickname) {
       alert('닉네임을 입력해주세요. / ニックネームを入力してください。');
       return;
     }
 
-    // 💡 2. アスキーアート・縦読み荒らし対策: 3回以上連続する改行を、2回に制限する
     const sanitizedBio = profile.bio.trim().replace(/\n{3,}/g, '\n\n');
 
-    // 💡 外部連絡先・リンクのブロック処理（正規表現）
     const prohibitedRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})|(https?:\/\/[^\s]+)|(www\.[^\s]+)|((?:line|kakao|카톡|카카오|라인|ID)[\s:：-]*[a-zA-Z0-9_.-]+)/i;
 
     if (prohibitedRegex.test(trimmedNickname) || prohibitedRegex.test(sanitizedBio)) {
@@ -77,7 +72,6 @@ export default function Profile() {
       return;
     }
 
-    // 💡 3. 文字数による制限チェック（念のための最終バリデーション）
     if (trimmedNickname.length > NICKNAME_MAX_CHARS || sanitizedBio.length > BIO_MAX_CHARS) {
       alert('글자 수 제한을 초과했습니다. / 文字数制限を超えています。');
       return;
@@ -88,28 +82,35 @@ export default function Profile() {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
 
     if (userError || !user) {
-      alert('【開発モード】ログインセッションがありませんが、保存をシミュレートしました。 / 로그인 세션이 없지만 저장을 시뮬레이션했습니다.');
-      setSaving(false);
+      await supabase.auth.signOut();
+      window.location.href = '/';
       return;
     }
 
-    const { error } = await supabase
+    const { data: updatedData, error } = await supabase
       .from('profiles')
       .update({
-        nickname: trimmedNickname, // 💡 整形済みのデータを保存
+        nickname: trimmedNickname,
         mbti: profile.mbti,
-        bio: sanitizedBio, // 💡 整形済みのデータを保存
+        bio: sanitizedBio,
       })
-      .eq('id', user.id);
+      .eq('id', user.id)
+      .select();
 
     if (error) {
       alert(`저장 중 오류가 발생했습니다 / 保存エラーが発生しました: ${error.message}`);
       setSaving(false);
-    } else {
-      alert('저장되었습니다. / 保存されました。');
-      // 💡 保存成功後に受信箱へリダイレクト
-      router.push('/letters');
+      return;
     }
+
+    if (!updatedData || updatedData.length === 0) {
+      await supabase.auth.signOut();
+      window.location.href = '/';
+      return;
+    }
+
+    alert('저장되었습니다. / 保存されました。');
+    router.push('/letters');
   };
 
   if (loading) {
@@ -122,8 +123,6 @@ export default function Profile() {
 
   return (
     <main style={{ minHeight: '100vh', backgroundColor: '#fdfbf7' }}>
-      
-      {/* 헤더 영역 (ヘッダー領域) */}
       <header style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -140,7 +139,6 @@ export default function Profile() {
         </h1>
         
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          {/* 他のページと統一された「受信箱」ボタン */}
           <Button 
             onClick={() => router.push('/letters')}
             className="bg-[#879977] hover:bg-[#738563] text-white font-bold text-lg px-6 py-3 h-auto"
@@ -150,13 +148,11 @@ export default function Profile() {
         </div>
       </header>
 
-      {/* 메인 콘텐츠 (メインコンテンツ) */}
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '48px 24px' }}>
         <h2 className="text-3xl font-bold text-[#4a3b32] mb-10 pb-6 border-b border-[#e6dfd5]">프로필 설정 / プロフィール設定</h2>
         
         <form onSubmit={handleSave} className="bg-white p-8 rounded-2xl shadow-sm border border-[#e6dfd5] space-y-8">
           
-          {/* 닉네임 / ニックネーム */}
           <div>
             <div className="flex justify-between items-baseline mb-3">
               <label className="block text-xl font-bold text-[#4a3b32]">닉네임 / ニックネーム</label>
@@ -175,7 +171,6 @@ export default function Profile() {
             />
           </div>
 
-          {/* MBTI / MBTI */}
           <div>
             <label className="block text-xl font-bold text-[#4a3b32] mb-3">MBTI</label>
             <select 
@@ -210,7 +205,6 @@ export default function Profile() {
             </select>
           </div>
 
-          {/* 자기소개 / 自己紹介 */}
           <div>
             <div className="flex justify-between items-baseline mb-3">
               <label className="block text-xl font-bold text-[#4a3b32]">자기소개 / 自己紹介</label>
@@ -228,7 +222,6 @@ export default function Profile() {
             />
           </div>
 
-          {/* 저장 버튼 / 保存ボタン */}
           <div className="pt-4">
             <Button 
               type="submit" 

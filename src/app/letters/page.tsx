@@ -11,22 +11,21 @@ export default function Letters() {
   const [letters, setLetters] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [nowTime, setNowTime] = useState(new Date().getTime()); // 現在時刻のステートを追加
+  const [nowTime, setNowTime] = useState(new Date().getTime());
 
   useEffect(() => {
     let isMounted = true;
 
-    // 現在時刻を定期的に更新して、時間が経ったら自動で開封可能にする処理
     const timer = setInterval(() => {
       setNowTime(new Date().getTime());
-    }, 60000); // 1分ごとに更新
+    }, 60000);
 
     const checkAuthAndFetchLetters = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!session) {
-          if (isMounted) setLoading(false);
+          window.location.href = '/';
           return;
         }
 
@@ -34,7 +33,7 @@ export default function Letters() {
         
         if (authError || !user) {
           await supabase.auth.signOut();
-          router.replace('/');
+          window.location.href = '/';
           return;
         }
 
@@ -50,13 +49,28 @@ export default function Letters() {
 
         const { data: myProfile } = await supabase
           .from('profiles')
-          .select('is_deleted')
+          .select('id, nickname, is_deleted')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
-        if (myProfile?.is_deleted) {
-          alert('탈퇴한 계정입니다. 결제 페이지로 이동합니다.\n\n退会済みのアカウントです。決済ページへ移動します。');
-          window.location.href = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '#';
+        // 💡 未決済（profilesにデータが存在しない）場合はログアウトしてトップページ(/)へ強制送還
+        if (!myProfile) {
+          await supabase.auth.signOut();
+          window.location.href = '/';
+          return;
+        }
+
+        // 💡 退会済みアカウントの場合もログアウトしてトップページ(/)へ強制送還
+        if (myProfile.is_deleted) {
+          alert('탈퇴한 계정입니다.\n\n退会済みのアカウントです。');
+          await supabase.auth.signOut();
+          window.location.href = '/';
+          return;
+        }
+
+        // 💡 決済済みだがプロフィール（ニックネーム）が未作成の場合はプロフィール作成画面へ
+        if (!myProfile.nickname) {
+          window.location.href = '/profile/new';
           return;
         }
 
@@ -240,10 +254,9 @@ export default function Letters() {
               const isJa = letter.sender_native === 'ja' || letter.sender_native === 'Japanese';
               const flagEmoji = isKo ? '🇰🇷' : isJa ? '🇯🇵' : '☕';
 
-              // 💡 36時間ロックの計算ロジック
               const sendTime = new Date(letter.created_at).getTime();
-              const unlockTime = sendTime + (36 * 60 * 60 * 1000); // 送信から36時間後
-              const isLocked = nowTime < unlockTime; // まだロック中か？
+              const unlockTime = sendTime + (36 * 60 * 60 * 1000);
+              const isLocked = nowTime < unlockTime;
               
               const remainingMs = unlockTime - nowTime;
               const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));

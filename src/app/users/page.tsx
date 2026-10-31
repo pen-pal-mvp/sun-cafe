@@ -39,20 +39,18 @@ function UsersContent() {
         if (isMounted) setIsVerifying(false);
       }
 
-      // 💡 認証セッションの取得を数回リトライするロジックに変更
+      // 💡 認証セッションの取得を数回リトライするロジック
       let user = null;
       for (let i = 0; i < 3; i++) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           user = session.user;
-          break; // セッションが取れたらループを抜ける
+          break;
         }
-        // セッションが取れなかったら0.5秒待つ
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
       if (!user) {
-        // それでもダメなら強制サインアウトしてトップへ
         await supabase.auth.signOut();
         if (isMounted) window.location.href = '/'; 
         return;
@@ -64,14 +62,24 @@ function UsersContent() {
         .eq('id', user.id)
         .maybeSingle(); 
       
-      if (profileError || !myProfile || !myProfile.nickname || myProfile.nickname.trim() === '') {
-        window.location.href = '/profile/new';
+      // 💡 未決済（profilesにデータが存在しない）場合はログアウトしてトップページ(/)へ強制送還
+      if (profileError || !myProfile) {
+        await supabase.auth.signOut();
+        if (isMounted) window.location.href = '/';
         return;
       }
 
+      // 💡 退会済みアカウントの場合もログアウトしてトップページ(/)へ強制送還
       if (myProfile.is_deleted) {
-        alert('탈퇴한 계정입니다. 결제 페이지로 이동합니다.\n\n退会済みのアカウントです。決済ページへ移動します。');
-        window.location.href = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || '#';
+        alert('탈퇴한 계정입니다.\n\n退会済みのアカウントです。');
+        await supabase.auth.signOut();
+        if (isMounted) window.location.href = '/';
+        return;
+      }
+
+      // 💡 決済済みだがニックネームが未登録の場合のみプロフィール作成画面へ移動
+      if (!myProfile.nickname || myProfile.nickname.trim() === '') {
+        window.location.href = '/profile/new';
         return;
       }
 
@@ -87,7 +95,6 @@ function UsersContent() {
       
       const blockedIds = new Set((blocks || []).map(b => b.blocked_id));
 
-      // 💡 ここを変更！ updated_at で優先ソートし、次に created_at でソートする
       const { data, error } = await supabase
         .from('profiles')
         .select('*')

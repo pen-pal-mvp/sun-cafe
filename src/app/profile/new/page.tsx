@@ -33,6 +33,29 @@ export default function NewProfile() {
         window.location.href = '/';
         return;
       }
+
+      // 💡 Stripe決済完了（profilesデータの生成）を確認（Webhookの通信ラグを考慮して最大5回確認）
+      let profile = null;
+      for (let i = 0; i < 5; i++) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('id, is_deleted')
+          .eq('id', user.id)
+          .maybeSingle();
+
+        if (profileData) {
+          profile = profileData;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+
+      // 💡 profilesにデータが存在しない（＝未決済）または退会済みの場合はトップページ(/)へ強制送還
+      if (!profile || profile.is_deleted) {
+        await supabase.auth.signOut();
+        window.location.href = '/';
+        return;
+      }
       
       setUserId(user.id);
       setLoading(false);
@@ -67,18 +90,26 @@ export default function NewProfile() {
     
     setSaving(true);
 
-    const { error: profileError } = await supabase
+    const { data: updatedProfile, error: profileError } = await supabase
       .from('profiles')
       .update({
         nickname: trimmedNickname,
         mbti: mbti,
         bio: sanitizedBio,
       })
-      .eq('id', userId);
+      .eq('id', userId)
+      .select();
 
     if (profileError) {
       alert(`프로필 저장 에러 / プロフィール保存エラー: ${profileError.message}`);
       setSaving(false);
+      return;
+    }
+
+    // 💡 更新対象が0件（未決済データ）だった場合もトップページへ強制送還
+    if (!updatedProfile || updatedProfile.length === 0) {
+      await supabase.auth.signOut();
+      window.location.href = '/';
       return;
     }
 
