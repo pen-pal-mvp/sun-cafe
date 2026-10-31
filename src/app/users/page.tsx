@@ -218,7 +218,7 @@ function UsersContent() {
                   )}
 
                   <div className="flex-1 relative z-10">
-                    <p className="text-[#5c4d44] text-xl leading-relaxed whitespace-pre-wrap line-clamp-3">
+                    <p className="text-[#5c4d44] text-xl leading-relaxed whitespace-pre-wrap ">
                       {user.bio || '자기소개가 없습니다. / 自己紹介がありません。'}
                     </p>
                   </div>
